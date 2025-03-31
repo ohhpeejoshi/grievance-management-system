@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+.env
+.DS_Store
+.vscode/
+.idea/
+*.log
+*.cache
+.next/
+*.lock
+yarn.lock
+package-lock.json
+public/tmp/
+coverage/
+# Ignore logs and OS files
+npm-debug.log*
+yarn-error.log*
+.pnp.cjs
+.pnp.loader.mjs
