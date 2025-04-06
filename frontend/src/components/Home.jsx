@@ -2,35 +2,52 @@ import { Link } from "react-router-dom";
 
 export default function Home() {
     return (
-        <div className="container mt-20 p-6 text-center">
-            <h1 className="text-4xl font-bold text-gray-800">Welcome to the Grievance Management System</h1>
-            <p className="text-lg text-gray-600 mt-4 max-w-2xl mx-auto">
-                A streamlined platform for students and faculty to submit, track, and resolve grievances efficiently.
-            </p>
+        <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 flex flex-col justify-center items-center px-6 py-12">
+            <div className="max-w-5xl w-full text-center">
+                {/* Heading */}
+                <h1 className="text-5xl font-extrabold text-gray-900 leading-tight">
+                    Grievance Management System
+                </h1>
+                <p className="text-lg text-gray-700 mt-4 max-w-3xl mx-auto">
+                    A streamlined platform for students and faculty to submit, track, and resolve grievances efficiently.
+                </p>
 
-            {/* Action Buttons */}
-            <div className="mt-6 space-x-4">
-                <Link to="/submit-grievance" className=" bg-blue-200 text-white px-6 py-3 rounded-md text-lg shadow-md hover:bg-blue-300">
-                    Submit a Grievance
-                </Link>
-                <Link to="/track-grievance" className="bg-gray-200 text-gray-800 px-6 py-3 rounded-md text-lg shadow-md hover:bg-gray-300">
-                    Track Grievance
-                </Link>
-            </div>
+                {/* Action Buttons */}
+                <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+                    <Link
+                        to="/submit-grievance"
+                        className="bg-white text-blue-600 border border-blue-600 px-6 py-3 rounded-xl text-lg shadow hover:bg-blue-50 transition"
+                    >
+                        Submit a Grievance
+                    </Link>
+                    <Link
+                        to="/track-grievance"
+                        className="bg-white text-blue-600 border border-blue-600 px-6 py-3 rounded-xl text-lg shadow hover:bg-blue-50 transition"
+                    >
+                        Track Grievance
+                    </Link>
+                </div>
 
-            {/* Features Section */}
-            <div className="mt-12 grid md:grid-cols-3 gap-8">
-                <div className="p-6 bg-white shadow-md rounded-md">
-                    <h3 className="text-xl font-semibold text-gray-800">Easy Submission</h3>
-                    <p className="text-gray-600 mt-2">Quickly lodge grievances with a user-friendly form.</p>
-                </div>
-                <div className="p-6 bg-white shadow-md rounded-md">
-                    <h3 className="text-xl font-semibold text-gray-800">Real-time Tracking</h3>
-                    <p className="text-gray-600 mt-2">Monitor the status of your complaints at any time.</p>
-                </div>
-                <div className="p-6 bg-white shadow-md rounded-md">
-                    <h3 className="text-xl font-semibold text-gray-800">Transparent Resolution</h3>
-                    <p className="text-gray-600 mt-2">Stay informed about how your grievance is being handled.</p>
+                {/* Features Section */}
+                <div className="mt-16 grid gap-8 sm:grid-cols-2 md:grid-cols-3">
+                    <div className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-transform transform hover:scale-105">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2">📝 Easy Submission</h3>
+                        <p className="text-gray-600">
+                            Quickly lodge grievances with a user-friendly and intuitive form.
+                        </p>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-transform transform hover:scale-105">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2">📊 Real-time Tracking</h3>
+                        <p className="text-gray-600">
+                            Monitor the status of your complaints at any time with live updates.
+                        </p>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-transform transform hover:scale-105">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2">🔍 Transparent Resolution</h3>
+                        <p className="text-gray-600">
+                            Stay informed with clear communication on the resolution process.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>

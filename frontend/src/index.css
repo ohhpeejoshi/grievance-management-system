@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* Global Styles */
-body {
+/* body {
   background-color: #f3f4f6;
   color: #1f2937;
   font-family: Arial, sans-serif;
@@ -13,14 +13,14 @@ body {
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 16px;
-}
+} */
 
 /* Navbar Styles */
-nav {
+/* nav {
   background-color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 16px;
-}
+} */
 
 a {
   color: #4b5563;
