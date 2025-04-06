@@ -1,8 +1,8 @@
 const contacts = [
-    { id: 1, name: "Dr. Usha Kanoongo", role: "Head of Grievance Cell", email: "usha.kanoongo@lnmiit.ac.in", phone: "+91 98765 43210" },
-    { id: 2, name: "Aditya Kansal", role: "Student Coordinator", email: "aditya.kansal@lnmiit.ac.in", phone: "+91 98765 43211" },
-    { id: 3, name: "Neha Raniwala", role: "Student Coordinator", email: "neha.raniwala@lnmiit.ac.in", phone: "+91 98765 43212" },
-    { id: 4, name: "Kunal Sharma", role: "Support Staff", email: "kunal.sharma@lnmiit.ac.in", phone: "+91 98765 43213" },
+    { id: 1, name: "Ansh Gupta", role: "Developer", email: "22ucc017@lnmiit.ac.in", phone: "+91 79067 26971" },
+    { id: 2, name: "Arpit Joshi", role: "Developer", email: "22ucc023@lnmiit.ac.in", phone: "+91 63755 91132" },
+    { id: 3, name: "Parth Ramdeo", role: "Developer", email: "22ucc072@lnmiit.ac.in", phone: "+91 73572 22550" },
+
 ];
 
 export default function Contact() {
