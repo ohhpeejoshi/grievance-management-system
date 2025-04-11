@@ -37,6 +37,10 @@ export default function Navbar() {
                         <span className="hover:text-gray-600 transition-colors duration-200">Contact</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
                     </Link>
+                    <Link to="/faq" className="relative group">
+                        <span className="hover:text-gray-600 transition-colors duration-200">FAQs</span>
+                        <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
+                    </Link>
                 </div>
 
                 {/* Mobile Menu Button */}
