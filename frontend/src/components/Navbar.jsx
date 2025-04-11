@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
+import logo from '../assets/Logo_LNMIIT2.png'; // adjust path if needed
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -9,11 +10,14 @@ export default function Navbar() {
         <nav className="bg-gray-50 shadow-xl p-4 rounded-b-2xl backdrop-blur-md sticky top-0 z-50 border-b border-white/30 ">
             <div className="container mx-auto flex justify-between items-center px-4">
                 {/* Logo */}
-                <Link to="/">
-                    <div className="text-2xl font-extrabold text-gray-800 tracking-wider hover:scale-105 transition-transform duration-200">
-                        LNMIIT Grievance Portal
-                    </div>
+                <Link to="/" className="flex items-center">
+                    <img
+                        src={logo}
+                        alt="LNMIIT Logo"
+                        className="h-10 w-auto object-contain hover:scale-105 transition-transform duration-200"
+                    />
                 </Link>
+
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex space-x-8 text-gray-800 font-semibold tracking-wide">

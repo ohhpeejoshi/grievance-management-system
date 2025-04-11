@@ -4,6 +4,7 @@ import SubmitGrievance from "./components/SubmitGrievance";
 import Home from "./components/Home";
 import TrackGrievance from "./components/TrackGrievance";
 import Contact from "./components/Contact";
+import OfficeBearer from "./components/OfficeBearer";
 
 export default function App() {
     return (
@@ -14,6 +15,7 @@ export default function App() {
                 <Route path="/track-grievance" element={<TrackGrievance />} />
                 <Route path="/submit-grievance" element={<SubmitGrievance />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/office-bearer" element={<OfficeBearer />} />
             </Routes>
         </Router>
     );
