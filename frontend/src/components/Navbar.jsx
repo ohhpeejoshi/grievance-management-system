@@ -33,8 +33,8 @@ export default function Navbar() {
                         <span className="hover:text-gray-600 transition-colors duration-200">Track Grievance</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
                     </Link>
-                    <Link to="/contact" className="relative group">
-                        <span className="hover:text-gray-600 transition-colors duration-200">Contact</span>
+                    <Link to="/About" className="relative group">
+                        <span className="hover:text-gray-600 transition-colors duration-200">About</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
                     </Link>
                     <Link to="/faq" className="relative group">
@@ -60,7 +60,7 @@ export default function Navbar() {
                     <Link to="/" className="block hover:text-gray-600 transition-colors duration-200">Home</Link>
                     <Link to="/submit-grievance" className="block hover:text-gray-600 transition-colors duration-200">Submit Grievance</Link>
                     <Link to="/track-grievance" className="block hover:text-gray-600 transition-colors duration-200">Track Grievance</Link>
-                    <Link to="/contact" className="block hover:text-gray-600 transition-colors duration-200">Contact</Link>
+                    <Link to="/About" className="block hover:text-gray-600 transition-colors duration-200">About</Link>
                 </div>
             )}
         </nav>

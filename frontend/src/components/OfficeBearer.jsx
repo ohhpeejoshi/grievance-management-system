@@ -4,14 +4,14 @@ export default function OfficeBearer() {
     // dummy data for grievances
     const [grievances] = useState([
         {
-            id: "LNMIIT/2025/April/12345",
+            id: "LNMIIT/2025/04/12345",
             title: "Water not coming from tap",
             submittedBy: "22ucc072",
             status: "Pending",
             date: "2025-04-06",
         },
         {
-            id: "LNMIIT/2025/April/12346",
+            id: "LNMIIT/2025/04/12346",
             title: "Wi-Fi not working in Room 203",
             submittedBy: "22ucc017",
             status: "In Progress",

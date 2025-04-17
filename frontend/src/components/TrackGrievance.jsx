@@ -6,7 +6,7 @@ export default function TrackGrievance() {
 
     const handleTrack = () => {
         // Placeholder logic: Replace with API call
-        if (grievanceId === "LNMIIT/2025/April/12345") {
+        if (grievanceId === "LNMIIT/2025/04/12345") {
             setStatus("In Progress");
         } else {
             setStatus("Not Found");
