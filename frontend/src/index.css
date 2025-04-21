@@ -22,7 +22,7 @@
   padding: 16px;
 } */
 
-a {
+/* a {
   color: #4b5563;
   text-decoration: none;
   transition: color 0.2s ease-in-out;
@@ -43,8 +43,8 @@ button {
 }
 
 button:hover {
-  background-color: #e5e7eb;
-}
+  background-color: #e5e7eb; }*/
+
 
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;

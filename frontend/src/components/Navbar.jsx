@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import logo from '../assets/Logo_LNMIIT2.png'; // adjust path if needed
+import logo from "../assets/Logo_LNMIIT2.png"; // adjust path if needed
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <nav className="bg-gray-50 shadow-xl p-4 rounded-b-2xl backdrop-blur-md sticky top-0 z-50 border-b border-white/30 ">
+        <nav className="bg-gray-50 shadow-xl p-4 rounded-b-2xl backdrop-blur-md sticky top-0 z-50 border-b border-white/30">
             <div className="container mx-auto flex justify-between items-center px-4">
                 {/* Logo */}
                 <Link to="/" className="flex items-center">
@@ -17,7 +17,6 @@ export default function Navbar() {
                         className="h-10 w-auto object-contain hover:scale-105 transition-transform duration-200"
                     />
                 </Link>
-
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex space-x-8 text-gray-800 font-semibold tracking-wide">
@@ -33,7 +32,7 @@ export default function Navbar() {
                         <span className="hover:text-gray-600 transition-colors duration-200">Track Grievance</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
                     </Link>
-                    <Link to="/About" className="relative group">
+                    <Link to="/about" className="relative group">
                         <span className="hover:text-gray-600 transition-colors duration-200">About</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
                     </Link>
@@ -41,6 +40,12 @@ export default function Navbar() {
                         <span className="hover:text-gray-600 transition-colors duration-200">FAQs</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
                     </Link>
+                    {/* Login and Register */}
+                    <Link to="/login" className="relative group">
+                        <span className="hover:text-gray-600 transition-colors duration-200">Logout</span>
+                        <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
+                    </Link>
+                   
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -60,8 +65,11 @@ export default function Navbar() {
                     <Link to="/" className="block hover:text-gray-600 transition-colors duration-200">Home</Link>
                     <Link to="/submit-grievance" className="block hover:text-gray-600 transition-colors duration-200">Submit Grievance</Link>
                     <Link to="/track-grievance" className="block hover:text-gray-600 transition-colors duration-200">Track Grievance</Link>
-                    <Link to="/About" className="block hover:text-gray-600 transition-colors duration-200">About</Link>
+                    <Link to="/about" className="block hover:text-gray-600 transition-colors duration-200">About</Link>
                     <Link to="/faq" className="block hover:text-gray-600 transition-colors duration-200">FAQs</Link>
+                    {/* Login and Register */}
+                    <Link to="/login" className="block hover:text-gray-600 transition-colors duration-200">Logout</Link>
+                    
                 </div>
             )}
         </nav>
