@@ -61,6 +61,7 @@ export default function Navbar() {
                     <Link to="/submit-grievance" className="block hover:text-gray-600 transition-colors duration-200">Submit Grievance</Link>
                     <Link to="/track-grievance" className="block hover:text-gray-600 transition-colors duration-200">Track Grievance</Link>
                     <Link to="/About" className="block hover:text-gray-600 transition-colors duration-200">About</Link>
+                    <Link to="/faq" className="block hover:text-gray-600 transition-colors duration-200">FAQs</Link>
                 </div>
             )}
         </nav>
