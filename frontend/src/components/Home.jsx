@@ -1,25 +1,31 @@
 import { Link } from "react-router-dom";
 import { TypeAnimation } from "react-type-animation";
+
 export default function Home() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 flex flex-col justify-center items-center px-6 py-12">
             <div className="max-w-5xl w-full text-center">
                 {/* Heading */}
                 <h1 className="text-5xl font-extrabold text-gray-900 leading-tight">
-                    <TypeAnimation
-                        sequence={[
-                            "Grievance Management Portal",
-                            750,
-                            "One-Stop Solution",
-                            750,
-                            "Streamlined Grievance",
-                            750,
-                        ]}
-                        wrapper="span"
-                        speed={50}
-                        style={{ display: "inline-block" }}
-                        repeat={Infinity}
-                    />
+                    <span className="block sm:hidden">
+                        Grievance Management Portal
+                    </span>
+                    <span className="hidden sm:block">
+                        <TypeAnimation
+                            sequence={[
+                                "Grievance Management Portal",
+                                750,
+                                "One-Stop Solution",
+                                750,
+                                "Streamlined Grievance",
+                                750,
+                            ]}
+                            wrapper="span"
+                            speed={50}
+                            style={{ display: "inline-block" }}
+                            repeat={Infinity}
+                        />
+                    </span>
                 </h1>
                 <p className="text-lg text-gray-700 mt-4 max-w-3xl mx-auto">
                     A streamlined platform for students and faculty to submit, track, and resolve grievances efficiently.

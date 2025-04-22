@@ -21,6 +21,15 @@ export default function SubmitGrievance() {
         "Water Cooler Maintenance",
     ];
 
+    const departments = [
+        "IT",
+        "Medical",
+        "Electrical",
+        "Civil",
+        "Plumbing",
+        "Housekeeping",
+    ];
+
     const userData = {
         name: "Parth Ramdeo",
         email: "22ucc072@lnmiit.ac.in"
@@ -127,6 +136,22 @@ export default function SubmitGrievance() {
                                 required
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Department of Complaint</label>
+                        <select
+                            name="departments"
+                            className="w-full p-3 border border-gray-300 rounded-lg"
+                            value={formData.departments}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="">Select Department</option>
+                            {departments.map((dept, index) => (
+                                <option key={index} value={dept}>{dept}</option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>
