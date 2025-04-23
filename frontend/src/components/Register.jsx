@@ -30,9 +30,9 @@ export default function Register() {
                         <label className="block mb-1 font-medium">User Type</label>
                         <select className="w-full border px-4 py-2 rounded-xl" required>
                             <option value="">Select User Type</option>
-                            <option value="admin">Admin</option>
-                            <option value="office-bearer">Office Bearer</option>
-                            <option value="student-resident">Student / Resident / Faculty</option>
+                            <option value="admin">Faculty</option>
+                            <option value="office-bearer">Student</option>
+                            <option value="student-resident">Staff</option>
                         </select>
                     </div>
 

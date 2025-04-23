@@ -113,7 +113,7 @@ export default function SubmitGrievance() {
                             name="description"
                             className="w-full p-3 border border-gray-300 rounded-lg"
                             rows="4"
-                            placeholder="Describe your grievance"
+                            placeholder="Describe your grievance with your room number/office number"
                             value={formData.description}
                             onChange={handleChange}
                             required

@@ -3,8 +3,8 @@ const Abouts = [
     { id: 2, name: "Arpit Joshi", role: "Developer", email: "22ucc023@lnmiit.ac.in", phone: "+91 63755 91132" },
     { id: 3, name: "Parth Ramdeo", role: "Developer", email: "22ucc072@lnmiit.ac.in", phone: "+91 73572 22550" },
     { id: 4, name: "Dr. Gaurav Chatterjee", role: "Mentor", email: "gaurav.chatterjee@lnmiit.ac.in", phone: "+91 84338 45849" },
-    { id: 5, name: "Soumik Bhaduri", role: "Mentor", email: "soumik.bhaduri@lnmiit.ac.in", phone: "+91 97480 22245" },
-    { id: 6, name: "Bhawani Shankar Sharma", role: "Mentor", email: "bhawani.sharma@lnmiit.ac.in", phone: "+91 81040 66299" },
+    { id: 5, name: "Mr. Soumik Bhaduri", role: "Mentor", email: "soumik.bhaduri@lnmiit.ac.in", phone: "+91 97480 22245" },
+    { id: 6, name: "Mr.Bhawani Shankar Sharma", role: "Mentor", email: "bhawani.sharma@lnmiit.ac.in", phone: "+91 81040 66299" },
 ];
 
 export default function About() {
@@ -45,7 +45,7 @@ export default function About() {
                     ))}
                 </div>
 
-               
+
             </div>
         </div>
     );
