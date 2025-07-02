@@ -25,15 +25,15 @@ export default function Register() {
                 </div>
 
                 <form className="space-y-4">
-                    {/* User Type */}
+                    {/* Roll No */}
                     <div>
-                        <label className="block mb-1 font-medium">User Type</label>
-                        <select className="w-full border px-4 py-2 rounded-xl" required>
-                            <option value="">Select User Type</option>
-                            <option value="admin">Faculty</option>
-                            <option value="office-bearer">Student</option>
-                            <option value="student-resident">Staff</option>
-                        </select>
+                        <label className="block mb-1 font-medium">Roll Number</label>
+                        <input
+                            type="text"
+                            placeholder="XXUCCXXX"
+                            className="w-full border px-4 py-2 rounded-xl"
+                            required
+                        />
                     </div>
 
                     {/* Name */}

@@ -62,7 +62,16 @@ export default function Login() {
                             required
                         />
                     </div>
-
+                    {/* Mobile Number */}
+                    <div>
+                        <label className="block mb-1 font-medium">Mobile Number</label>
+                        <input
+                            type="tel"
+                            placeholder="7906XX6971"
+                            className="w-full border px-4 py-2 rounded-xl"
+                            required
+                        />
+                    </div>
                     {/* Login Button */}
                     <button
                         type="submit"
