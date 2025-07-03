@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { createUser } from '../models/User.js';
 import { db } from '../config/db.js'
-import { sendOtpSMS } from '../utils/sendOtp.js';
+import { sendOtpEmail } from '../utils/sendOtp.js';
 
 export const registerUser = (req, res) => {
     const { roll_number, name, email, password, mobile_number } = req.body;
@@ -49,19 +49,15 @@ export const loginUser = (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         otpStore.set(email, otp);
 
-        console.log(`OTP for ${email}: ${otp}`); // TODO: replace with SMS
+        console.log(`OTP for ${email}: ${otp}`);
+        //send email otp
         try {
-            await sendOtpSMS(user.mobile_number, otp);
-            res.status(200).json({ message: "OTP sent", email });
+            await sendOtpEmail(email, otp);
+            return res.status(200).json({ message: "OTP sent to email", email });
         } catch (err) {
-            res.status(500).json({ error: "Failed to send OTP SMS" });
+            return res.status(500).json({ error: "Failed to send OTP email" });
         }
 
-        // 5. Respond
-        res.status(200).json({
-            message: "OTP sent to registered mobile number",
-            email,
-        });
     });
 };
 

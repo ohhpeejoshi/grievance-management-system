@@ -1,28 +1,28 @@
-import axios from "axios";
-import dotenv from "dotenv"
-
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 dotenv.config();
 
-export const sendOtpSMS = async (mobileNumber, otp) => {
-    const message = `Your OTP for login is ${otp}. Do not share it with anyone.`;
+export const sendOtpEmail = async (email, otp) => {
+    const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+    });
 
-    const data = {
-        route: "v3",
-        sender_id: "TXTIND",
-        message,
-        language: "english",
-        numbers: mobileNumber,
+    const mailOptions = {
+        from: `"LNMIIT Grievance Portal" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Your OTP for Login",
+        html: `<p>Your OTP for login is: <strong>${otp}</strong></p><p>Do not share this OTP with anyone.</p>`,
     };
 
     try {
-        const res = await axios.post("https://www.fast2sms.com/dev/bulkV2", data, {
-            headers: {
-                authorization: process.env.FAST2SMS_API_KEY,
-            },
-        });
-        return res.data;
-    } catch (err) {
-        console.error("SMS send error:", err.response?.data || err.message);
-        throw new Error("Failed to send OTP");
+        const info = await transporter.sendMail(mailOptions);
+        console.log("OTP email sent:", info.response);
+    } catch (error) {
+        console.error("Error sending email:", error);
+        throw new Error("Failed to send OTP email");
     }
 };
