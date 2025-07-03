@@ -1,3 +1,4 @@
+// frontend/src/components/ForgotPassword.jsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import logo from "../assets/Logo_LNMIIT2.png";
@@ -12,18 +13,33 @@ export default function ForgotPassword() {
     const [newPassword, setNewPassword] = useState("");
     const navigate = useNavigate();
 
-    const handleRequestOtp = (e) => {
+    const handleRequestOtp = async (e) => {
         e.preventDefault();
         if (!identifier) {
             alert("Please enter your email or mobile number.");
             return;
         }
-        // TODO: API call to send OTP to identifier
-        setOtpRequested(true);
-        alert("OTP has been sent to your email or mobile.");
+
+        try {
+            const res = await fetch("http://localhost:3000/api/auth/forgot-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identifier }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to request OTP");
+            }
+
+            alert(data.message);
+            setOtpRequested(true);
+        } catch (err) {
+            alert(err.message);
+        }
     };
 
-    const handleReset = (e) => {
+    const handleReset = async (e) => {
         e.preventDefault();
         if (!otp) {
             alert("Please enter the OTP you received.");
@@ -33,13 +49,27 @@ export default function ForgotPassword() {
             alert("Please enter a new password.");
             return;
         }
+
         setIsLoading(true);
-        // TODO: API call to verify OTP and reset password
-        setTimeout(() => {
-            setIsLoading(false);
-            alert("Your password has been reset successfully.");
+        try {
+            const res = await fetch("http://localhost:3000/api/auth/reset-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identifier, otp, newPassword }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to reset password");
+            }
+
+            alert(data.message);
             navigate("/login");
-        }, 2000);
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return isLoading ? (
