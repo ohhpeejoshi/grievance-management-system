@@ -13,30 +13,91 @@ export default function Login() {
     const [otp, setOtp] = useState("");
     const navigate = useNavigate();
 
-    const handleRequestOtp = (e) => {
+    const handleRequestOtp = async (e) => {
         e.preventDefault();
-        // TODO: call OTP API
-        setOtpRequested(true);
-        alert("OTP sent to your mobile number.");
+        if (!email || !password || !mobile) {
+            alert("Please fill all fields");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const response = await fetch("http://localhost:3000/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ email, password, mobile_number: mobile }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || "Login failed");
+
+            setOtpRequested(true);
+            alert("OTP sent to your registered email id");
+        } catch (err) {
+            alert("Error: " + err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleResendOtp = (e) => {
+    const handleResendOtp = async (e) => {
         e.preventDefault();
-        // TODO: call resend OTP API
-        alert("OTP resent to your mobile number.");
+        setIsLoading(true);
+        try {
+            const response = await fetch("http://localhost:3000/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ email, password, mobile_number: mobile }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || "Resend failed");
+
+            alert("OTP resent successfully");
+        } catch (err) {
+            alert("Error: " + err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        if (otpRequested && !otp) {
+
+        if (!otpRequested) {
+            alert("Please request OTP first");
+            return;
+        }
+
+        if (!otp) {
             alert("Please enter OTP");
             return;
         }
+
         setIsLoading(true);
-        // TODO: verify credentials and OTP via API
-        setTimeout(() => {
+        try {
+            const response = await fetch("http://localhost:3000/api/auth/verify-otp", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ email, otp }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || "OTP verification failed");
+
+            // Login successful
             navigate("/home");
-        }, 2000);
+        } catch (err) {
+            alert("Error: " + err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return isLoading ? (
