@@ -11,12 +11,14 @@ export default function ForgotPassword() {
     const [otpRequested, setOtpRequested] = useState(false);
     const [otp, setOtp] = useState("");
     const [newPassword, setNewPassword] = useState("");
+    const [errorMessage, setErrorMessage] = useState("");
     const navigate = useNavigate();
 
     const handleRequestOtp = async (e) => {
         e.preventDefault();
+        setErrorMessage("");
         if (!identifier) {
-            alert("Please enter your email or mobile number.");
+            setErrorMessage("Please enter your email or mobile number.");
             return;
         }
 
@@ -29,24 +31,31 @@ export default function ForgotPassword() {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || "Failed to request OTP");
+                // check for registration error
+                if (data.error && data.error.toLowerCase().includes("not found")) {
+                    setErrorMessage("User not registered. Please register below.");
+                } else {
+                    setErrorMessage(data.error || "Failed to request OTP.");
+                }
+                return;
             }
 
             alert(data.message);
             setOtpRequested(true);
         } catch (err) {
-            alert(err.message);
+            setErrorMessage(err.message);
         }
     };
 
     const handleReset = async (e) => {
         e.preventDefault();
+        setErrorMessage("");
         if (!otp) {
-            alert("Please enter the OTP you received.");
+            setErrorMessage("Please enter the OTP you received.");
             return;
         }
         if (!newPassword) {
-            alert("Please enter a new password.");
+            setErrorMessage("Please enter a new password.");
             return;
         }
 
@@ -60,13 +69,14 @@ export default function ForgotPassword() {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || "Failed to reset password");
+                setErrorMessage(data.error || "Failed to reset password.");
+                return;
             }
 
             alert(data.message);
             navigate("/login");
         } catch (err) {
-            alert(err.message);
+            setErrorMessage(err.message);
         } finally {
             setIsLoading(false);
         }
@@ -86,6 +96,12 @@ export default function ForgotPassword() {
                     <img src={logo} alt="LNMIIT Logo" className="mx-auto h-10 w-auto" />
                     <h2 className="text-2xl font-semibold text-gray-800 mt-2">Forgot Password</h2>
                 </div>
+
+                {errorMessage && (
+                    <div className="mb-4 text-center text-red-600">
+                        {errorMessage}
+                    </div>
+                )}
 
                 <form onSubmit={otpRequested ? handleReset : handleRequestOtp} className="space-y-4">
                     {/* Email or Mobile */}
@@ -140,14 +156,27 @@ export default function ForgotPassword() {
                     </button>
                 </form>
 
-                <div className="mt-4 text-center">
-                    <Link
-                        to="/login"
-                        className="text-blue-600 hover:text-blue-700 font-medium text-sm"
-                    >
-                        Back to Login
-                    </Link>
-                </div>
+                {/* show register link if user not found */}
+                {errorMessage.toLowerCase().includes("register") && (
+                    <div className="mt-4 text-center">
+                        <p className="text-sm">Don’t have an account?</p>
+                        <Link to="/register" className="text-blue-600 font-medium">
+                            Register here
+                        </Link>
+                    </div>
+                )}
+
+                {/* always show back to login */}
+                {!errorMessage.toLowerCase().includes("register") && (
+                    <div className="mt-4 text-center">
+                        <Link
+                            to="/login"
+                            className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                        >
+                            Back to Login
+                        </Link>
+                    </div>
+                )}
             </div>
         </div>
     );
