@@ -53,12 +53,8 @@ export const verifyOtp = (req, res) => {
     res.status(200).json({ message: "Login successful" });
 };
 
-/**
- * 1️⃣ User submits identifier → we look up by email or mobile, then email them an OTP
- */
 export const forgotPassword = (req, res) => {
     const { identifier } = req.body;
-    // lookup by email or mobile
     const query = "SELECT email FROM users WHERE email = ? OR mobile_number = ?";
     db.query(query, [identifier, identifier], async (err, results) => {
         if (err) return res.status(500).json({ error: "Database error" });
@@ -78,12 +74,8 @@ export const forgotPassword = (req, res) => {
     });
 };
 
-/**
- * 2️⃣ User submits identifier + OTP + newPassword → we verify & update
- */
 export const resetPassword = (req, res) => {
     const { identifier, otp, newPassword } = req.body;
-    // find their email again
     const query = "SELECT email FROM users WHERE email = ? OR mobile_number = ?";
     db.query(query, [identifier, identifier], (err, results) => {
         if (err) return res.status(500).json({ error: "Database error" });
@@ -94,14 +86,31 @@ export const resetPassword = (req, res) => {
         if (!stored) return res.status(400).json({ error: "OTP expired or not found" });
         if (stored !== otp) return res.status(400).json({ error: "Incorrect OTP" });
 
-        // hash & update
         bcrypt.hash(newPassword, 6, (err, hashed) => {
             if (err) return res.status(500).json({ error: "Encryption failed." });
-            updateUserPassword(email, hashed, (err) => {
-                if (err) return res.status(500).json({ error: "DB error updating password" });
+            updateUserPassword(email, hashed, (err2) => {
+                if (err2) return res.status(500).json({ error: "DB error updating password" });
                 otpStore.delete(email);
                 res.status(200).json({ message: "Password has been reset successfully." });
             });
         });
+    });
+};
+
+/**
+ * New: GET /api/auth/profile?email=...
+ */
+export const getUserProfile = (req, res) => {
+    const email = req.query.email;
+    const query = `
+    SELECT name, email, mobile_number 
+    FROM users 
+    WHERE email = ?
+  `;
+    db.query(query, [email], (err, results) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+        if (!results.length) return res.status(404).json({ error: "User not found" });
+        const { name, email: userEmail, mobile_number } = results[0];
+        res.json({ name, email: userEmail, mobileNumber: mobile_number });
     });
 };
