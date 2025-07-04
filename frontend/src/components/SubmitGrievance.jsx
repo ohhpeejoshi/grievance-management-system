@@ -78,13 +78,28 @@ export default function SubmitGrievance() {
     const handleChange = e => {
         const { name, value } = e.target;
         setError("");
+
         if (name === "department") {
-            setFormData(p => ({ ...p, department: value, category: "" }));
+            setFormData(p => ({ ...p, department: value, category: "", urgency: "Normal" }));
             fetch(`http://localhost:3000/api/grievances/categories/${value}`)
                 .then(res => res.json())
                 .then(setCategoriesList)
                 .catch(err => console.error("Cat fetch failed:", err));
-        } else {
+        }
+        else if (name === "category") {
+            const catId = parseInt(value, 10);
+            const sel = categoriesList.find(c => c.id === catId);
+            const urg = sel?.urgency
+                ? sel.urgency.charAt(0).toUpperCase() + sel.urgency.slice(1)
+                : "Normal";
+
+            setFormData(p => ({
+                ...p,
+                category: value,
+                urgency: urg
+            }));
+        }
+        else {
             setFormData(p => ({ ...p, [name]: value }));
         }
     };
@@ -295,11 +310,11 @@ export default function SubmitGrievance() {
                         <label className="block text-sm font-medium text-gray-700">Urgency Level</label>
                         <select
                             name="urgency"
-                            className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                            className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100"
                             value={formData.urgency}
                             disabled
                         >
-                            <option value="Normal">Normal</option>
+                            <option value={formData.urgency}>{formData.urgency}</option>
                         </select>
                     </div>
 

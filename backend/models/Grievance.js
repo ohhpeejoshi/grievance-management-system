@@ -6,11 +6,14 @@ export const getAllDepartments = (callback) => {
 };
 
 export const getCategoriesByDept = (deptId, callback) => {
-    db.query(
-        'SELECT id, name FROM categories WHERE department_id = ? ORDER BY name',
-        [deptId],
-        callback
-    );
+    // now also SELECT urgency so frontend can auto-display it
+    const sql = `
+      SELECT id, name, urgency
+      FROM categories
+      WHERE department_id = ?
+      ORDER BY name
+    `;
+    db.query(sql, [deptId], callback);
 };
 
 export const createGrievance = (data, callback) => {
