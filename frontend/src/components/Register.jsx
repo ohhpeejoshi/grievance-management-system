@@ -59,7 +59,7 @@ export default function Register() {
             />
 
             {/* Registration Card */}
-            <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-2xl p-8">
+            <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-md p-8">
                 <div className="mb-6 text-center">
                     <img
                         src={logo}
@@ -156,12 +156,12 @@ export default function Register() {
 
                 {/* Login Link */}
                 <div className="mt-4 text-center">
-                    <p className="text-xl text-white">
+                    <p className="text-sm">
                         Already have an account?{" "}
                     </p>
                     <Link
                         to="/login"
-                        className=" text-xl text-blue-600 hover:text-blue-700 font-medium"
+                        className=" text-sm text-blue-600"
                     >
                         Login here
                     </Link>
