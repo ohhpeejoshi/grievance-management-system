@@ -1,3 +1,4 @@
+// src/components/Login.jsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import logo from "../assets/Logo_LNMIIT2.png";
@@ -24,12 +25,9 @@ export default function Login() {
         try {
             const response = await fetch("http://localhost:3000/api/auth/login", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password, mobile_number: mobile }),
             });
-
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || "Login failed");
 
@@ -48,12 +46,9 @@ export default function Login() {
         try {
             const response = await fetch("http://localhost:3000/api/auth/login", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password, mobile_number: mobile }),
             });
-
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || "Resend failed");
 
@@ -72,7 +67,6 @@ export default function Login() {
             alert("Please request OTP first");
             return;
         }
-
         if (!otp) {
             alert("Please enter OTP");
             return;
@@ -82,16 +76,16 @@ export default function Login() {
         try {
             const response = await fetch("http://localhost:3000/api/auth/verify-otp", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, otp }),
             });
-
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || "OTP verification failed");
 
-            // Login successful
+            // ← SAVE EMAIL FOR LATER PROFILE FETCH
+            localStorage.setItem("userEmail", email);
+
+            // Navigate to wherever you need (e.g. home or directly /submit-grievance)
             navigate("/home");
         } catch (err) {
             alert("Error: " + err.message);
