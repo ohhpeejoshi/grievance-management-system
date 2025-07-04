@@ -7,9 +7,10 @@ const otpStore = new Map();
 
 export const registerUser = (req, res) => {
     const { roll_number, name, email, password, mobile_number } = req.body;
-    if (!email.endsWith('@lnmiit.ac.in')) {
+    if (!email.endsWith('@lnmiit.ac.in') && email !== 'grievanceportallnmiit@gmail.com') {
         return res.status(400).json({ error: 'Only LNMIIT emails are allowed.' });
     }
+
     bcrypt.hash(password, 6, (err, hashedPassword) => {
         if (err) return res.status(500).json({ error: 'Password encryption failed.' });
         createUser({ roll_number, name, email, hashedPassword, mobile_number }, (err2) => {
