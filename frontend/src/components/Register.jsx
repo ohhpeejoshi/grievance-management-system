@@ -155,14 +155,10 @@ export default function Register() {
                 )}
 
                 {/* Login Link */}
+
                 <div className="mt-4 text-center">
-                    <p className="text-sm">
-                        Already have an account?{" "}
-                    </p>
-                    <Link
-                        to="/login"
-                        className=" text-sm text-blue-600"
-                    >
+                    <p className="text-sm">Already have an account?</p>
+                    <Link to="/login" className="text-blue-600 font-medium">
                         Login here
                     </Link>
                 </div>
