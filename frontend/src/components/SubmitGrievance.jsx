@@ -1,4 +1,3 @@
-// src/components/SubmitGrievance.jsx
 import { useState, useEffect } from "react";
 
 export default function SubmitGrievance() {
@@ -11,12 +10,10 @@ export default function SubmitGrievance() {
         "Material Synthesis Lab", "Sub Station", "Admission Cell", "Faculty Offices"
     ];
 
-    // Profile state
     const [userData, setUserData] = useState({ name: "", email: "", mobileNumber: "" });
     const [profileLoading, setProfileLoading] = useState(true);
     const [profileError, setProfileError] = useState("");
 
-    // Form state
     const [departmentsList, setDepartmentsList] = useState([]);
     const [categoriesList, setCategoriesList] = useState([]);
     const [formData, setFormData] = useState({
@@ -30,10 +27,10 @@ export default function SubmitGrievance() {
         mobileNumber: "",
         complainantName: "",
     });
+    const [previewUrl, setPreviewUrl] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
-    // 1️⃣ Fetch user profile
     useEffect(() => {
         const emailFromAuth = localStorage.getItem("userEmail");
         if (!emailFromAuth) {
@@ -66,7 +63,6 @@ export default function SubmitGrievance() {
             .finally(() => setProfileLoading(false));
     }, []);
 
-    // 2️⃣ Fetch departments
     useEffect(() => {
         fetch("http://localhost:3000/api/grievances/departments")
             .then(res => res.json())
@@ -74,7 +70,6 @@ export default function SubmitGrievance() {
             .catch(err => console.error("Dept fetch failed:", err));
     }, []);
 
-    // Handlers
     const handleChange = e => {
         const { name, value } = e.target;
         setError("");
@@ -90,10 +85,21 @@ export default function SubmitGrievance() {
     };
 
     const handleFileChange = e => {
-        setFormData(p => ({ ...p, attachment: e.target.files[0] }));
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            setError("File too large. Max size is 2MB.");
+            setFormData(p => ({ ...p, attachment: null }));
+            setPreviewUrl(null);
+            return;
+        }
+
+        setFormData(p => ({ ...p, attachment: file }));
+        setPreviewUrl(URL.createObjectURL(file));
+        setError("");
     };
 
-    // Submit
     const handleSubmit = async e => {
         e.preventDefault();
         setError("");
@@ -119,7 +125,8 @@ export default function SubmitGrievance() {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Submission failed");
 
-            alert(json.message);
+            alert(`✅ Grievance submitted successfully.\n📎 Attachment: ${json.imageUrl || "No file uploaded"}`);
+
             setFormData({
                 title: "",
                 description: "",
@@ -132,6 +139,7 @@ export default function SubmitGrievance() {
                 complainantName: userData.name,
             });
             setCategoriesList([]);
+            setPreviewUrl(null);
         } catch (err) {
             console.error(err);
             setError(err.message);
@@ -140,7 +148,6 @@ export default function SubmitGrievance() {
         }
     };
 
-    // Render loading / error states first
     if (profileLoading) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -148,6 +155,7 @@ export default function SubmitGrievance() {
             </div>
         );
     }
+
     if (profileError) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -156,7 +164,6 @@ export default function SubmitGrievance() {
         );
     }
 
-    // Main form
     return (
         <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 flex justify-center px-4 py-10">
             <div className="max-w-4xl w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8">
@@ -165,11 +172,9 @@ export default function SubmitGrievance() {
                 </h2>
                 {error && <div className="mb-4 text-center text-red-600">{error}</div>}
 
-                {/* Complainant Info */}
                 <div className="mb-8 p-6 bg-white rounded-xl shadow">
                     <h3 className="font-semibold text-lg mb-4">Complainant Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Name */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Name</label>
                             <input
@@ -180,7 +185,6 @@ export default function SubmitGrievance() {
                                 readOnly
                             />
                         </div>
-                        {/* Email */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Email</label>
                             <input
@@ -190,7 +194,6 @@ export default function SubmitGrievance() {
                                 readOnly
                             />
                         </div>
-                        {/* Mobile */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
                             <div className="flex">
@@ -210,7 +213,6 @@ export default function SubmitGrievance() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Title */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Title</label>
                         <input
@@ -224,7 +226,6 @@ export default function SubmitGrievance() {
                         />
                     </div>
 
-                    {/* Description */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Description</label>
                         <textarea
@@ -238,7 +239,6 @@ export default function SubmitGrievance() {
                         />
                     </div>
 
-                    {/* Department */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Department of Complaint</label>
                         <select
@@ -255,7 +255,6 @@ export default function SubmitGrievance() {
                         </select>
                     </div>
 
-                    {/* Location */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Location of Complaint</label>
                         <select
@@ -272,7 +271,6 @@ export default function SubmitGrievance() {
                         </select>
                     </div>
 
-                    {/* Category */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Category</label>
                         <select
@@ -290,7 +288,6 @@ export default function SubmitGrievance() {
                         </select>
                     </div>
 
-                    {/* Urgency */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Urgency Level</label>
                         <select
@@ -303,7 +300,6 @@ export default function SubmitGrievance() {
                         </select>
                     </div>
 
-                    {/* Attachment */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Attach Supporting Document (if any)</label>
                         <input
@@ -312,9 +308,14 @@ export default function SubmitGrievance() {
                             className="w-full p-3 border border-gray-300 rounded-lg"
                             onChange={handleFileChange}
                         />
+                        {previewUrl && (
+                            <div className="mt-2">
+                                <p className="text-xs text-gray-500">Preview:</p>
+                                <img src={previewUrl} alt="preview" className="w-32 h-32 object-cover border rounded-lg" />
+                            </div>
+                        )}
                     </div>
 
-                    {/* Submit */}
                     <button
                         type="submit"
                         disabled={submitting}
