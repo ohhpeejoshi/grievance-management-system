@@ -1,4 +1,3 @@
-// /backend/routes/grievanceRoutes.js
 import express from 'express';
 import multer from 'multer';
 import {
@@ -9,14 +8,8 @@ import {
 
 const router = express.Router();
 
-// Multer setup
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => {
-        const ext = file.originalname.split('.').pop();
-        cb(null, `${Date.now()}.${ext}`);
-    }
-});
+// 🔁 Use memory storage so that we can directly send buffer to ImageKit
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Routes
