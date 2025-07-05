@@ -1,10 +1,18 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import logo from "../assets/Logo_LNMIIT2.png"; // adjust path if needed
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        if (window.confirm("Are you sure you want to logout?")) {
+            // Optional: clear tokens or perform logout logic here
+            navigate("/login");
+        }
+    };
 
     return (
         <nav className="bg-gray-50 shadow-xl p-4 rounded-b-2xl backdrop-blur-md sticky top-0 z-50 border-b border-white/30">
@@ -40,12 +48,14 @@ export default function Navbar() {
                         <span className="hover:text-gray-600 transition-colors duration-200">FAQs</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
                     </Link>
-                    {/* Login and Register */}
-                    <Link to="/login" className="relative group">
+                    {/* Logout */}
+                    <button
+                        onClick={handleLogout}
+                        className="relative group focus:outline-none"
+                    >
                         <span className="hover:text-gray-600 transition-colors duration-200">Logout</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
-                    </Link>
-
+                    </button>
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -67,9 +77,13 @@ export default function Navbar() {
                     <Link to="/track-grievance" className="block hover:text-gray-600 transition-colors duration-200">Track Grievance</Link>
                     <Link to="/about" className="block hover:text-gray-600 transition-colors duration-200">About</Link>
                     <Link to="/faq" className="block hover:text-gray-600 transition-colors duration-200">FAQs</Link>
-                    {/* Login and Register */}
-                    <Link to="/login" className="block hover:text-gray-600 transition-colors duration-200">Logout</Link>
-
+                    {/* Logout */}
+                    <button
+                        onClick={handleLogout}
+                        className="block hover:text-gray-600 transition-colors duration-200 w-full text-left"
+                    >
+                        Logout
+                    </button>
                 </div>
             )}
         </nav>
