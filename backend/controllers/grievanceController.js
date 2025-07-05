@@ -79,7 +79,7 @@ export const submitGrievance = async (req, res) => {
                     console.error('DB error inserting grievance:', err);
                     return res.status(500).json({ error: 'DB error inserting grievance' });
                 }
-                res.status(201).json({ message: 'Grievance submitted successfully', imageUrl });
+                res.status(201).json({ message: 'Grievance submitted successfully' });
             }
         );
     } catch (err) {
