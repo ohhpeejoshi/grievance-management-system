@@ -1,7 +1,6 @@
 // /backend/controllers/grievanceController.js
-import fs from 'fs';
-import path from 'path';
 import { getAllDepartments, getCategoriesByDept, createGrievance } from '../models/Grievance.js';
+import imagekit from '../config/imagekit.js';
 
 /**
  * GET /api/grievances/departments
@@ -33,46 +32,58 @@ export const listCategories = (req, res) => {
 /**
  * POST /api/grievances/submit
  */
-export const submitGrievance = (req, res) => {
-    // multer saved file info in req.file
-    const attachmentPath = req.file ? req.file.filename : null;
+export const submitGrievance = async (req, res) => {
+    try {
+        let imageUrl = null;
 
-    const {
-        title,
-        description,
-        location,
-        department,     // deptId string
-        category,       // catId string
-        urgency = 'Normal',
-        mobileNumber,
-        complainantName,
-        email
-    } = req.body;
+        // ⬆️ Upload to ImageKit if file is attached
+        if (req.file) {
+            const uploadResponse = await imagekit.upload({
+                file: req.file.buffer,
+                fileName: `grievance_${Date.now()}_${req.file.originalname}`,
+                folder: "/grievances", // optional folder in ImageKit
+            });
+            imageUrl = uploadResponse.url;
+        }
 
-    // parse ids
-    const department_id = parseInt(department, 10);
-    const category_id = parseInt(category, 10);
-
-    // insert
-    createGrievance(
-        {
+        const {
             title,
             description,
             location,
-            department_id,
-            category_id,
-            urgency,
-            attachmentPath,
-            mobile_number: mobileNumber,
-            complainant_name: complainantName,
+            department,
+            category,
+            urgency = 'Normal',
+            mobileNumber,
+            complainantName,
             email
-        },
-        (err) => {
-            if (err) {
-                console.error('DB error inserting grievance:', err);
-                return res.status(500).json({ error: 'DB error inserting grievance' });
+        } = req.body;
+
+        const department_id = parseInt(department, 10);
+        const category_id = parseInt(category, 10);
+
+        createGrievance(
+            {
+                title,
+                description,
+                location,
+                department_id,
+                category_id,
+                urgency,
+                attachmentPath: imageUrl,
+                mobile_number: mobileNumber,
+                complainant_name: complainantName,
+                email
+            },
+            (err) => {
+                if (err) {
+                    console.error('DB error inserting grievance:', err);
+                    return res.status(500).json({ error: 'DB error inserting grievance' });
+                }
+                res.status(201).json({ message: 'Grievance submitted successfully', imageUrl });
             }
-            res.status(201).json({ message: 'Grievance submitted successfully' });
-        }
-    );
+        );
+    } catch (err) {
+        console.error('ImageKit Upload Error:', err);
+        res.status(500).json({ error: 'Image upload failed' });
+    }
 };
