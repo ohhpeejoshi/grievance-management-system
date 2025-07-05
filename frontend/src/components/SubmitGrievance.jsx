@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function SubmitGrievance() {
     const locations = [
@@ -10,62 +10,183 @@ export default function SubmitGrievance() {
         "Material Synthesis Lab", "Sub Station", "Admission Cell", "Faculty Offices"
     ];
 
-    const categories = [
-        "Civil and Infrastructure Related",
-        "Plumbing Issues",
-        "Water Leakages",
-        "Electricity Related",
-        "Air Conditioner Repair",
-        "Air Ducts Related Repairs",
-        "RO Water Purifier Repair",
-        "Water Cooler Maintenance",
-    ];
+    const [userData, setUserData] = useState({ name: "", email: "", mobileNumber: "" });
+    const [profileLoading, setProfileLoading] = useState(true);
+    const [profileError, setProfileError] = useState("");
 
-    const departments = [
-        "IT",
-        "Medical",
-        "Electrical",
-        "Civil",
-        "Plumbing",
-        "Housekeeping",
-    ];
-
-    const userData = {
-        name: "Parth Ramdeo",
-        email: "22ucc072@lnmiit.ac.in"
-    };
-
+    const [departmentsList, setDepartmentsList] = useState([]);
+    const [categoriesList, setCategoriesList] = useState([]);
     const [formData, setFormData] = useState({
         title: "",
         description: "",
         location: "",
+        department: "",
         category: "",
         urgency: "Normal",
         attachment: null,
         mobileNumber: "",
-        complainantName: userData.name,
+        complainantName: "",
     });
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
 
-    const handleChange = (e) => {
+    useEffect(() => {
+        const emailFromAuth = localStorage.getItem("userEmail");
+        if (!emailFromAuth) {
+            setProfileError("No user logged in.");
+            setProfileLoading(false);
+            return;
+        }
+
+        fetch(`http://localhost:3000/api/auth/profile?email=${emailFromAuth}`)
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to load profile");
+                return res.json();
+            })
+            .then(data => {
+                setUserData({
+                    name: data.name,
+                    email: data.email,
+                    mobileNumber: data.mobileNumber,
+                });
+                setFormData(p => ({
+                    ...p,
+                    complainantName: data.name,
+                    mobileNumber: data.mobileNumber,
+                }));
+            })
+            .catch(err => {
+                console.error("Profile fetch failed:", err);
+                setProfileError(err.message);
+            })
+            .finally(() => setProfileLoading(false));
+    }, []);
+
+    useEffect(() => {
+        fetch("http://localhost:3000/api/grievances/departments")
+            .then(res => res.json())
+            .then(setDepartmentsList)
+            .catch(err => console.error("Dept fetch failed:", err));
+    }, []);
+
+    const handleChange = e => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setError("");
+
+        if (name === "department") {
+            setFormData(p => ({ ...p, department: value, category: "", urgency: "Normal" }));
+            fetch(`http://localhost:3000/api/grievances/categories/${value}`)
+                .then(res => res.json())
+                .then(setCategoriesList)
+                .catch(err => console.error("Cat fetch failed:", err));
+        }
+        else if (name === "category") {
+            const catId = parseInt(value, 10);
+            const sel = categoriesList.find(c => c.id === catId);
+            const urg = sel?.urgency
+                ? sel.urgency.charAt(0).toUpperCase() + sel.urgency.slice(1)
+                : "Normal";
+
+            setFormData(p => ({
+                ...p,
+                category: value,
+                urgency: urg
+            }));
+        }
+        else {
+            setFormData(p => ({ ...p, [name]: value }));
+        }
     };
 
-    const handleFileChange = (e) => {
-        setFormData((prev) => ({ ...prev, attachment: e.target.files[0] }));
+    const handleFileChange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            setError("File too large. Max size is 2MB.");
+            setFormData(p => ({ ...p, attachment: null }));
+            setPreviewUrl(null);
+            return;
+        }
+
+        setFormData(p => ({ ...p, attachment: file }));
+        setPreviewUrl(URL.createObjectURL(file));
+        setError("");
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async e => {
         e.preventDefault();
-        console.log(formData);
+        setError("");
+        setSubmitting(true);
+
+        try {
+            const data = new FormData();
+            data.append("title", formData.title);
+            data.append("description", formData.description);
+            data.append("location", formData.location);
+            data.append("department", formData.department);
+            data.append("category", formData.category);
+            data.append("urgency", formData.urgency);
+            data.append("mobileNumber", formData.mobileNumber);
+            data.append("complainantName", formData.complainantName);
+            data.append("email", userData.email);
+            if (formData.attachment) data.append("attachment", formData.attachment);
+
+            const res = await fetch("http://localhost:3000/api/grievances/submit", {
+                method: "POST",
+                body: data,
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Submission failed");
+
+            alert(`✅ Grievance submitted successfully.\n📎 Attachment: ${json.imageUrl || "No file uploaded"}`);
+
+            setFormData({
+                title: "",
+                description: "",
+                location: "",
+                department: "",
+                category: "",
+                urgency: "Normal",
+                attachment: null,
+                mobileNumber: userData.mobileNumber,
+                complainantName: userData.name,
+            });
+            setCategoriesList([]);
+            setPreviewUrl(null);
+        } catch (err) {
+            console.error(err);
+            setError(err.message);
+        } finally {
+            setSubmitting(false);
+        }
     };
+
+    if (profileLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <p className="text-lg">Loading your profile…</p>
+            </div>
+        );
+    }
+
+    if (profileError) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <p className="text-red-600">{profileError}</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 flex justify-center px-4 py-10">
             <div className="max-w-4xl w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8">
-                <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">Submit a Grievance</h2>
+                <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">
+                    Submit a Grievance
+                </h2>
+                {error && <div className="mb-4 text-center text-red-600">{error}</div>}
 
-                {/* Complainant Info */}
                 <div className="mb-8 p-6 bg-white rounded-xl shadow">
                     <h3 className="font-semibold text-lg mb-4">Complainant Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -76,10 +197,8 @@ export default function SubmitGrievance() {
                                 name="complainantName"
                                 className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100"
                                 value={formData.complainantName}
-                                onChange={handleChange}
                                 readOnly
                             />
-                            <p className="text-xs text-gray-500 mt-1">Will be auto-filled from user account data</p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Email</label>
@@ -89,6 +208,21 @@ export default function SubmitGrievance() {
                                 value={userData.email}
                                 readOnly
                             />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
+                            <div className="flex">
+                                <span className="inline-flex items-center px-3 text-gray-500 bg-gray-100 border border-r-0 rounded-l-lg">
+                                    +91
+                                </span>
+                                <input
+                                    type="tel"
+                                    name="mobileNumber"
+                                    className="w-full p-3 border border-gray-300 rounded-r-lg bg-gray-100"
+                                    value={formData.mobileNumber}
+                                    readOnly
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -113,43 +247,25 @@ export default function SubmitGrievance() {
                             name="description"
                             className="w-full p-3 border border-gray-300 rounded-lg"
                             rows="4"
-                            placeholder="Describe your grievance with your room number/office number"
+                            placeholder="Describe your grievance with room/office number"
                             value={formData.description}
                             onChange={handleChange}
                             required
-                        ></textarea>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
-                        <div className="flex">
-                            <span className="inline-flex items-center px-3 text-gray-500 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg">
-                                +91
-                            </span>
-                            <input
-                                type="tel"
-                                name="mobileNumber"
-                                className="w-full p-3 border border-gray-300 rounded-r-lg"
-                                placeholder="Enter your mobile number"
-                                value={formData.mobileNumber}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
+                        />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Department of Complaint</label>
                         <select
-                            name="departments"
+                            name="department"
                             className="w-full p-3 border border-gray-300 rounded-lg"
-                            value={formData.departments}
+                            value={formData.department}
                             onChange={handleChange}
                             required
                         >
                             <option value="">Select Department</option>
-                            {departments.map((dept, index) => (
-                                <option key={index} value={dept}>{dept}</option>
+                            {departmentsList.map(d => (
+                                <option key={d.id} value={d.id}>{d.name}</option>
                             ))}
                         </select>
                     </div>
@@ -164,8 +280,8 @@ export default function SubmitGrievance() {
                             required
                         >
                             <option value="">Select Location</option>
-                            {locations.map((loc, index) => (
-                                <option key={index} value={loc}>{loc}</option>
+                            {locations.map(loc => (
+                                <option key={loc} value={loc}>{loc}</option>
                             ))}
                         </select>
                     </div>
@@ -178,10 +294,11 @@ export default function SubmitGrievance() {
                             value={formData.category}
                             onChange={handleChange}
                             required
+                            disabled={!categoriesList.length}
                         >
                             <option value="">Select Category</option>
-                            {categories.map((cat, index) => (
-                                <option key={index} value={cat}>{cat}</option>
+                            {categoriesList.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
                             ))}
                         </select>
                     </div>
@@ -190,31 +307,36 @@ export default function SubmitGrievance() {
                         <label className="block text-sm font-medium text-gray-700">Urgency Level</label>
                         <select
                             name="urgency"
-                            className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                            className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100"
                             value={formData.urgency}
                             disabled
                         >
-                            <option value="Normal">Normal</option>
+                            <option value={formData.urgency}>{formData.urgency}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className="!block text-sm font-medium text-gray-700">
-                            Attach Supporting Document (if any)
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700">Attach Supporting Document (if any)</label>
                         <input
                             type="file"
                             name="attachment"
-                            className="!w-full p-3 border border-gray-300 rounded-lg"
+                            className="w-full p-3 border border-gray-300 rounded-lg"
                             onChange={handleFileChange}
                         />
+                        {previewUrl && (
+                            <div className="mt-2">
+                                <p className="text-xs text-gray-500">Preview:</p>
+                                <img src={previewUrl} alt="preview" className="w-32 h-32 object-cover border rounded-lg" />
+                            </div>
+                        )}
                     </div>
 
                     <button
                         type="submit"
-                        className="!bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-blue-600 transition-all"
+                        disabled={submitting}
+                        className="w-full bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-blue-600 transition-all"
                     >
-                        Submit
+                        {submitting ? "Submitting..." : "Submit"}
                     </button>
                 </form>
             </div>
