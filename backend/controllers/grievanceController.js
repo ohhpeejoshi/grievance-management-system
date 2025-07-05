@@ -3,6 +3,7 @@ import { getAllDepartments, getCategoriesByDept, createGrievance } from '../mode
 import imagekit from '../config/imagekit.js';
 import { db } from '../config/db.js';
 import { sendTicketIdEmail } from '../utils/sendTicketIdEmail.js';
+
 /**
  * GET /api/grievances/departments
  */
@@ -37,14 +38,20 @@ export const submitGrievance = async (req, res) => {
     try {
         let imageUrl = null;
 
-        // ⬆️ Upload to ImageKit if file is attached
-        if (req.file) {
-            const uploadResponse = await imagekit.upload({
-                file: req.file.buffer,
-                fileName: `grievance_${Date.now()}_${req.file.originalname}`,
-                folder: "/grievances", // optional folder in ImageKit
-            });
-            imageUrl = uploadResponse.url;
+        // ⬆️ Upload to ImageKit only if file is attached
+        if (req.file && req.file.buffer) {
+            try {
+                const uploadResponse = await imagekit.upload({
+                    file: req.file.buffer,
+                    fileName: `grievance_${Date.now()}_${req.file.originalname}`,
+                    folder: "/grievances",
+                });
+                imageUrl = uploadResponse.url;
+            } catch (uploadErr) {
+                console.error('ImageKit upload failed:', uploadErr);
+                // continue without image
+                imageUrl = null;
+            }
         }
 
         const {
@@ -83,7 +90,7 @@ export const submitGrievance = async (req, res) => {
         };
         const resolutionTime = resolutionMap[urgency] || resolutionMap.Normal;
 
-
+        // ✅ Insert grievance with imageUrl (can be null)
         createGrievance(
             {
                 title,
@@ -96,7 +103,7 @@ export const submitGrievance = async (req, res) => {
                 mobile_number: mobileNumber,
                 complainant_name: complainantName,
                 email,
-                ticket_id // 🆕 Pass ticket_id here
+                ticket_id
             },
             (err) => {
                 if (err) {
@@ -104,37 +111,20 @@ export const submitGrievance = async (req, res) => {
                     return res.status(500).json({ error: 'DB error inserting grievance' });
                 }
 
-                // 3️⃣ Send confirmation email
-                const subject = `Your Grievance Ticket: ${ticket_id}`;
-                const text =
-                    `Hello ${complainantName},
-
-Your grievance has been received with the following details:
-
-• Ticket ID: ${ticket_id}
-• Urgency: ${urgency}
-• Expected Resolution Time: ${resolutionTime}
-
-We will keep you posted on any updates.  
-Thank you for raising this with us.
-
-— Grievance Cell`;
-
+                // ✉️ Send confirmation email
                 sendTicketIdEmail(email, complainantName, ticket_id, urgency, resolutionTime)
                     .then(() => console.log(`Grievance email sent to ${email}`))
                     .catch(mailErr => console.error('Grievance email error:', mailErr));
 
-                // 4️⃣ Final response
-                res
-                    .status(201)
-                    .json({
-                        message: 'Grievance submitted successfully',
-                        ticket_id
-                    });
+                // ✅ Final response
+                res.status(201).json({
+                    message: 'Grievance submitted successfully',
+                    ticket_id
+                });
             }
         );
     } catch (err) {
-        console.error('ImageKit Upload/Error:', err);
-        res.status(500).json({ error: 'Image upload or submission failed' });
+        console.error('Grievance submission failed:', err);
+        res.status(500).json({ error: 'Grievance submission failed' });
     }
 };
