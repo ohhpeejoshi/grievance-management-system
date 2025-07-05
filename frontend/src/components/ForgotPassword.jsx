@@ -1,9 +1,8 @@
-// frontend/src/components/ForgotPassword.jsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
-import Loader from "./Loader";
+import OtpLoader from "./OtpLoader";
 
 export default function ForgotPassword() {
     const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +30,6 @@ export default function ForgotPassword() {
             const data = await res.json();
 
             if (!res.ok) {
-                // check for registration error
                 if (data.error && data.error.toLowerCase().includes("not found")) {
                     setErrorMessage("User not registered. Please register below.");
                 } else {
@@ -82,31 +80,34 @@ export default function ForgotPassword() {
         }
     };
 
-    return isLoading ? (
-        <Loader />
-    ) : (
+    return (
         <div className="relative min-h-screen flex items-center justify-center px-6 py-12 overflow-hidden">
             <img
                 src={background}
                 alt="Background"
                 className="absolute inset-0 w-full h-full object-cover z-0"
             />
+
             <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-md p-8">
                 <div className="mb-6 text-center">
                     <img src={logo} alt="LNMIIT Logo" className="mx-auto h-10 w-auto" />
-                    <h2 className="text-2xl font-semibold text-gray-800 mt-2">Forgot Password</h2>
+                    <h2 className="text-2xl font-semibold text-gray-800 mt-2">
+                        Forgot Password
+                    </h2>
                 </div>
 
                 {errorMessage && (
-                    <div className="mb-4 text-center text-red-600">
-                        {errorMessage}
-                    </div>
+                    <div className="mb-4 text-center text-red-600">{errorMessage}</div>
                 )}
 
-                <form onSubmit={otpRequested ? handleReset : handleRequestOtp} className="space-y-4">
-                    {/* Email or Mobile */}
+                <form
+                    onSubmit={otpRequested ? handleReset : handleRequestOtp}
+                    className="space-y-4"
+                >
                     <div>
-                        <label className="block mb-1 font-medium">Email or Mobile Number</label>
+                        <label className="block mb-1 font-medium">
+                            Email or Mobile Number
+                        </label>
                         <input
                             type="text"
                             value={identifier}
@@ -118,34 +119,32 @@ export default function ForgotPassword() {
                         />
                     </div>
 
-                    {/* OTP Field */}
                     {otpRequested && (
-                        <div>
-                            <label className="block mb-1 font-medium">OTP</label>
-                            <input
-                                type="text"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
-                                placeholder="Enter OTP"
-                                className="w-full border px-4 py-2 rounded-xl"
-                                required
-                            />
-                        </div>
-                    )}
+                        <>
+                            <div>
+                                <label className="block mb-1 font-medium">OTP</label>
+                                <input
+                                    type="text"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    placeholder="Enter OTP"
+                                    className="w-full border px-4 py-2 rounded-xl"
+                                    required
+                                />
+                            </div>
 
-                    {/* New Password Field */}
-                    {otpRequested && (
-                        <div>
-                            <label className="block mb-1 font-medium">New Password</label>
-                            <input
-                                type="password"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                placeholder="Enter new password"
-                                className="w-full border px-4 py-2 rounded-xl"
-                                required
-                            />
-                        </div>
+                            <div>
+                                <label className="block mb-1 font-medium">New Password</label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Enter new password"
+                                    className="w-full border px-4 py-2 rounded-xl"
+                                    required
+                                />
+                            </div>
+                        </>
                     )}
 
                     <button
@@ -156,18 +155,14 @@ export default function ForgotPassword() {
                     </button>
                 </form>
 
-                {/* show register link if user not found */}
-                {errorMessage.toLowerCase().includes("register") && (
+                {errorMessage.toLowerCase().includes("register") ? (
                     <div className="mt-4 text-center">
                         <p className="text-sm">Don’t have an account?</p>
                         <Link to="/register" className="text-blue-600 font-medium">
                             Register here
                         </Link>
                     </div>
-                )}
-
-                {/* always show back to login */}
-                {!errorMessage.toLowerCase().includes("register") && (
+                ) : (
                     <div className="mt-4 text-center">
                         <Link
                             to="/login"
@@ -178,6 +173,8 @@ export default function ForgotPassword() {
                     </div>
                 )}
             </div>
+
+            {isLoading && <OtpLoader />}
         </div>
     );
 }

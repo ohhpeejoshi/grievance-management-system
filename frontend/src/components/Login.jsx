@@ -1,9 +1,8 @@
-// src/components/Login.jsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
-import Loader from "./Loader";
+import OtpLoader from "./OtpLoader";
 
 export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -62,7 +61,6 @@ export default function Login() {
 
     const handleLogin = async (e) => {
         e.preventDefault();
-
         if (!otpRequested) {
             alert("Please request OTP first");
             return;
@@ -82,10 +80,7 @@ export default function Login() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || "OTP verification failed");
 
-            // ← SAVE EMAIL FOR LATER PROFILE FETCH
             localStorage.setItem("userEmail", email);
-
-            // Navigate to wherever you need (e.g. home or directly /submit-grievance)
             navigate("/home");
         } catch (err) {
             alert("Error: " + err.message);
@@ -94,15 +89,14 @@ export default function Login() {
         }
     };
 
-    return isLoading ? (
-        <Loader />
-    ) : (
+    return (
         <div className="relative min-h-screen flex items-center justify-center px-6 py-12 overflow-hidden">
             <img
                 src={background}
                 alt="LNMIIT Campus"
                 className="absolute inset-0 w-full h-full object-cover z-0"
             />
+
             <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-md p-8">
                 <div className="mb-6 text-center">
                     <img src={logo} alt="LNMIIT Logo" className="mx-auto h-10 w-auto" />
@@ -197,6 +191,8 @@ export default function Login() {
                     </Link>
                 </div>
             </div>
+
+            {isLoading && <OtpLoader />}
         </div>
     );
 }

@@ -1,7 +1,11 @@
+// src/controllers/authController.js
 import bcrypt from 'bcrypt';
 import { createUser, updateUserPassword, getUserByEmail } from '../models/User.js';
 import { db } from '../config/db.js';
 import { sendOtpEmail } from '../utils/sendOtp.js';
+
+// ← NEW import
+import { sendRegistrationEmail } from '../utils/mail.js';
 
 const otpStore = new Map();
 
@@ -13,8 +17,13 @@ export const registerUser = (req, res) => {
 
     bcrypt.hash(password, 6, (err, hashedPassword) => {
         if (err) return res.status(500).json({ error: 'Password encryption failed.' });
-        createUser({ roll_number, name, email, hashedPassword, mobile_number }, (err2) => {
+        createUser({ roll_number, name, email, hashedPassword, mobile_number }, async (err2) => {
             if (err2) return res.status(500).json({ error: 'Database error.' });
+
+            // ← FIRE‑AND‑FORGET the welcome email
+            sendRegistrationEmail(email, name)
+                .catch(console.error);
+
             res.status(201).json({ message: 'User registered successfully.' });
         });
     });
