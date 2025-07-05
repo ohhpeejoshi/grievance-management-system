@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 
 import Loader from "./components/Loader";
-import Navbar from "./components/Navbar";
+import Navbar from "./components/Navbar"; // Student/Faculty/Staff Navbar
 import Home from "./components/Home";
 import TrackGrievance from "./components/TrackGrievance";
 import SubmitGrievance from "./components/SubmitGrievance";
@@ -27,7 +27,7 @@ function AppContent() {
 
   return (
     <>
-      {!hideNavbar && <Navbar />}
+      {!hideNavbar && shouldRenderNavbar && <Navbar />} {/* Render Navbar conditionally */}
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
