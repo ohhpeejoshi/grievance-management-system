@@ -2,7 +2,7 @@
 import { getAllDepartments, getCategoriesByDept, createGrievance } from '../models/Grievance.js';
 import imagekit from '../config/imagekit.js';
 import { db } from '../config/db.js';
-
+import { sendTicketIdEmail } from '../utils/sendTicketIdEmail.js';
 /**
  * GET /api/grievances/departments
  */
@@ -76,6 +76,14 @@ export const submitGrievance = async (req, res) => {
 
         const ticket_id = `lnm/${year}/${month}/${serialNo}`;
 
+        const resolutionMap = {
+            Normal: '5 working days',
+            High: '3 working days',
+            Emergency: '1 working day'
+        };
+        const resolutionTime = resolutionMap[urgency] || resolutionMap.Normal;
+
+
         createGrievance(
             {
                 title,
@@ -95,11 +103,38 @@ export const submitGrievance = async (req, res) => {
                     console.error('DB error inserting grievance:', err);
                     return res.status(500).json({ error: 'DB error inserting grievance' });
                 }
-                res.status(201).json({ message: `Grievance submitted successfully`, ticket_id });
+
+                // 3️⃣ Send confirmation email
+                const subject = `Your Grievance Ticket: ${ticket_id}`;
+                const text =
+                    `Hello ${complainantName},
+
+Your grievance has been received with the following details:
+
+• Ticket ID: ${ticket_id}
+• Urgency: ${urgency}
+• Expected Resolution Time: ${resolutionTime}
+
+We will keep you posted on any updates.  
+Thank you for raising this with us.
+
+— Grievance Cell`;
+
+                sendTicketIdEmail(email, complainantName, ticket_id, urgency, resolutionTime)
+                    .then(() => console.log(`Grievance email sent to ${email}`))
+                    .catch(mailErr => console.error('Grievance email error:', mailErr));
+
+                // 4️⃣ Final response
+                res
+                    .status(201)
+                    .json({
+                        message: 'Grievance submitted successfully',
+                        ticket_id
+                    });
             }
         );
     } catch (err) {
-        console.error('ImageKit Upload Error:', err);
-        res.status(500).json({ error: 'Image upload failed' });
+        console.error('ImageKit Upload/Error:', err);
+        res.status(500).json({ error: 'Image upload or submission failed' });
     }
 };
