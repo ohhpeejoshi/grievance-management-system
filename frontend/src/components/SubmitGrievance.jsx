@@ -140,7 +140,7 @@ export default function SubmitGrievance() {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Submission failed");
 
-            alert(`✅ Grievance submitted successfully.\n📎 Attachment: ${json.imageUrl || "No file uploaded"}`);
+            alert(`✅ Grievance submitted successfully.\n📎 Ticket_id: ${json.ticket_id || "Error generating ticket id, check your mail!"}`);
 
             setFormData({
                 title: "",

@@ -41,19 +41,21 @@ export const createGrievance = (data, callback) => {
         attachmentPath,
         mobile_number,
         complainant_name,
-        email
+        email,
+        ticket_id
     } = data;
 
     const query = `
         INSERT INTO grievances
-          (title, description, location, department_id, category_id, urgency,
+          (ticket_id, title, description, location, department_id, category_id, urgency,
            attachment, mobile_number, complainant_name, email)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.query(
         query,
         [
+            ticket_id, // ✅ ticket_id right after id
             title,
             description,
             location,

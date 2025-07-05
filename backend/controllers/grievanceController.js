@@ -1,6 +1,7 @@
 // /backend/controllers/grievanceController.js
 import { getAllDepartments, getCategoriesByDept, createGrievance } from '../models/Grievance.js';
 import imagekit from '../config/imagekit.js';
+import { db } from '../config/db.js';
 
 /**
  * GET /api/grievances/departments
@@ -61,6 +62,20 @@ export const submitGrievance = async (req, res) => {
         const department_id = parseInt(department, 10);
         const category_id = parseInt(category, 10);
 
+        // 🆕 Generate ticket_id
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+
+        const [rows] = await db.promise().query(
+            `SELECT COUNT(*) AS count FROM grievances WHERE MONTH(created_at) = ? AND YEAR(created_at) = ?`,
+            [month, year]
+        );
+        const count = rows[0].count + 1;
+        const serialNo = String(count).padStart(4, '0');
+
+        const ticket_id = `lnm/${year}/${month}/${serialNo}`;
+
         createGrievance(
             {
                 title,
@@ -72,14 +87,15 @@ export const submitGrievance = async (req, res) => {
                 attachmentPath: imageUrl,
                 mobile_number: mobileNumber,
                 complainant_name: complainantName,
-                email
+                email,
+                ticket_id // 🆕 Pass ticket_id here
             },
             (err) => {
                 if (err) {
                     console.error('DB error inserting grievance:', err);
                     return res.status(500).json({ error: 'DB error inserting grievance' });
                 }
-                res.status(201).json({ message: 'Grievance submitted successfully' });
+                res.status(201).json({ message: `Grievance submitted successfully`, ticket_id });
             }
         );
     } catch (err) {
