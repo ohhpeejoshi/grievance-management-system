@@ -27,7 +27,7 @@ function AppContent() {
 
   return (
     <>
-      {!hideNavbar && shouldRenderNavbar && <Navbar />} {/* Render Navbar conditionally */}
+      {!hideNavbar && <Navbar />} {/* Render Navbar conditionally */}
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
