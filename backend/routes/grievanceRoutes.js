@@ -3,18 +3,22 @@ import multer from 'multer';
 import {
     listDepartments,
     listCategories,
-    submitGrievance
+    submitGrievance,
+    trackGrievance
 } from '../controllers/grievanceController.js';
 
 const router = express.Router();
-
-// 🔁 Use memory storage so that we can directly send buffer to ImageKit
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Routes
+// department/category lookups
 router.get('/departments', listDepartments);
 router.get('/categories/:deptId', listCategories);
+
+// submit (optional attachment)
 router.post('/submit', upload.single('attachment'), submitGrievance);
+
+// track by ticket_id (URL‑encoded)
+router.get('/track/:ticket_id', trackGrievance);
 
 export default router;

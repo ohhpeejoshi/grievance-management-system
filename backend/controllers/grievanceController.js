@@ -1,8 +1,8 @@
-// /backend/controllers/grievanceController.js
 import { getAllDepartments, getCategoriesByDept, createGrievance } from '../models/Grievance.js';
 import imagekit from '../config/imagekit.js';
 import { db } from '../config/db.js';
 import { sendTicketIdEmail } from '../utils/sendTicketIdEmail.js';
+
 /**
  * GET /api/grievances/departments
  */
@@ -36,13 +36,11 @@ export const listCategories = (req, res) => {
 export const submitGrievance = async (req, res) => {
     try {
         let imageUrl = null;
-
-        // ⬆️ Upload to ImageKit if file is attached
         if (req.file) {
             const uploadResponse = await imagekit.upload({
                 file: req.file.buffer,
                 fileName: `grievance_${Date.now()}_${req.file.originalname}`,
-                folder: "/grievances", // optional folder in ImageKit
+                folder: "/grievances",
             });
             imageUrl = uploadResponse.url;
         }
@@ -62,18 +60,17 @@ export const submitGrievance = async (req, res) => {
         const department_id = parseInt(department, 10);
         const category_id = parseInt(category, 10);
 
-        // 🆕 Generate ticket_id
+        // Generate ticket_id
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
 
         const [rows] = await db.promise().query(
-            `SELECT COUNT(*) AS count FROM grievances WHERE MONTH(created_at) = ? AND YEAR(created_at) = ?`,
+            `SELECT COUNT(*) AS count FROM grievances
+         WHERE MONTH(created_at) = ? AND YEAR(created_at) = ?`,
             [month, year]
         );
-        const count = rows[0].count + 1;
-        const serialNo = String(count).padStart(4, '0');
-
+        const serialNo = String(rows[0].count + 1).padStart(4, '0');
         const ticket_id = `lnm/${year}/${month}/${serialNo}`;
 
         const resolutionMap = {
@@ -82,7 +79,6 @@ export const submitGrievance = async (req, res) => {
             Emergency: '1 working day'
         };
         const resolutionTime = resolutionMap[urgency] || resolutionMap.Normal;
-
 
         createGrievance(
             {
@@ -96,7 +92,7 @@ export const submitGrievance = async (req, res) => {
                 mobile_number: mobileNumber,
                 complainant_name: complainantName,
                 email,
-                ticket_id // 🆕 Pass ticket_id here
+                ticket_id
             },
             (err) => {
                 if (err) {
@@ -104,37 +100,48 @@ export const submitGrievance = async (req, res) => {
                     return res.status(500).json({ error: 'DB error inserting grievance' });
                 }
 
-                // 3️⃣ Send confirmation email
-                const subject = `Your Grievance Ticket: ${ticket_id}`;
-                const text =
-                    `Hello ${complainantName},
-
-Your grievance has been received with the following details:
-
-• Ticket ID: ${ticket_id}
-• Urgency: ${urgency}
-• Expected Resolution Time: ${resolutionTime}
-
-We will keep you posted on any updates.  
-Thank you for raising this with us.
-
-— Grievance Cell`;
-
+                // Send confirmation email
                 sendTicketIdEmail(email, complainantName, ticket_id, urgency, resolutionTime)
                     .then(() => console.log(`Grievance email sent to ${email}`))
                     .catch(mailErr => console.error('Grievance email error:', mailErr));
 
-                // 4️⃣ Final response
-                res
-                    .status(201)
-                    .json({
-                        message: 'Grievance submitted successfully',
-                        ticket_id
-                    });
+                res.status(201).json({
+                    message: 'Grievance submitted successfully',
+                    ticket_id
+                });
             }
         );
     } catch (err) {
         console.error('ImageKit Upload/Error:', err);
         res.status(500).json({ error: 'Image upload or submission failed' });
+    }
+};
+
+/**
+ * GET /api/grievances/track/:ticket_id
+ */
+export const trackGrievance = async (req, res) => {
+    try {
+        const { ticket_id } = req.params;
+        // const [rows] = await db.promise().query(
+        //     `SELECT ticket_id, status, created_at, updated_at
+        //  FROM grievances
+        // WHERE ticket_id = ?`,
+        //     [ticket_id]
+        // );
+
+        const [rows] = await db.promise().query(
+            `SELECT ticket_id, status, created_at
+                  FROM grievances
+                 WHERE ticket_id = ?`,
+            [ticket_id]
+        );
+        if (!rows.length) {
+            return res.status(404).json({ error: 'Grievance not found' });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error('Error tracking grievance:', err);
+        res.status(500).json({ error: 'Server error while tracking grievance' });
     }
 };
