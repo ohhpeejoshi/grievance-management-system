@@ -10,18 +10,22 @@ import {
 import Loader from "./components/Loader";
 import Navbar from "./components/Navbar"; // Student/Faculty/Staff Navbar
 import Home from "./components/Home";
+import LandingHome from "./components/LandingHome";
 import TrackGrievance from "./components/TrackGrievance";
 import SubmitGrievance from "./components/SubmitGrievance";
 import About from "./components/About";
 import Faq from "./components/Faq";
 import OfficeBearer from "./components/OfficeBearer";
+import OfficeBearerLogin from "./components/OfficeBearerLogin";
+import ApprovingAuthorityLogin from "./components/ApprovingAuthorityLogin";
+import AdminLogin from "./components/AdminLogin";
 import Register from "./components/Register";
 import Login from "./components/Login";
 import ForgotPassword from "./components/ForgotPassword";
 
 function AppContent() {
   const location = useLocation();
-  const hideNavbar = ["/login", "/register", "/forgot-password"].includes(
+  const hideNavbar = ["/", "/login", "/register", "/forgot-password", "/office-bearer-login", "/approving-authority-login", "/admin-login"].includes(
     location.pathname
   );
 
@@ -29,7 +33,7 @@ function AppContent() {
     <>
       {!hideNavbar && <Navbar />} {/* Render Navbar conditionally */}
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<LandingHome />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -39,6 +43,9 @@ function AppContent() {
         <Route path="/about" element={<About />} />
         <Route path="/faq" element={<Faq />} />
         <Route path="/office-bearer" element={<OfficeBearer />} />
+        <Route path="/office-bearer-login" element={<OfficeBearerLogin />} />
+        <Route path="/approving-authority-login" element={<ApprovingAuthorityLogin />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>

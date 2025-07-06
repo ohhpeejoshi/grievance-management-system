@@ -10,7 +10,7 @@ export default function Navbar() {
     const handleLogout = () => {
         if (window.confirm("Are you sure you want to logout?")) {
             // Optional: clear tokens or perform logout logic here
-            navigate("/login");
+            navigate("/");
         }
     };
 

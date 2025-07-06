@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
 
 export default function Register() {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         roll_number: "",
         name: "",
@@ -60,6 +61,13 @@ export default function Register() {
 
             {/* Registration Card */}
             <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-md p-8">
+                <button
+                    className="mb-4 text-blue-600 hover:underline text-sm"
+                    type="button"
+                    onClick={() => navigate("/")}
+                >
+                    ← Back to Main Page
+                </button>
                 <div className="mb-6 text-center">
                     <img
                         src={logo}
