@@ -5,26 +5,6 @@ import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
 
 export default function AdminLogin() {
-    // ...existing state
-    const handleResendOtp = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        try {
-            const response = await fetch("http://localhost:3000/api/auth/admin-login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password, mobile_number: mobile }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Resend failed");
-            alert("OTP resent successfully");
-        } catch (err) {
-            alert("Error: " + err.message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [mobile, setMobile] = useState("");
@@ -33,7 +13,7 @@ export default function AdminLogin() {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleRequestOtp = async (e) => {
+    const requestOtp = async (e) => {
         e.preventDefault();
         if (!email || !password || !mobile) {
             alert("Please fill all fields");
@@ -41,21 +21,23 @@ export default function AdminLogin() {
         }
         setIsLoading(true);
         try {
-            const response = await fetch("http://localhost:3000/api/auth/admin-login", {
+            const res = await fetch("/api/auth/admin-login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password, mobile_number: mobile }),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Login failed");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Login failed");
             setOtpRequested(true);
-            alert("OTP sent to your registered email id");
+            alert("OTP sent to your registered email");
         } catch (err) {
             alert("Error: " + err.message);
         } finally {
             setIsLoading(false);
         }
     };
+
+    const resendOtp = requestOtp;
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -69,13 +51,13 @@ export default function AdminLogin() {
         }
         setIsLoading(true);
         try {
-            const response = await fetch("http://localhost:3000/api/auth/admin-verify-otp", {
+            const res = await fetch("/api/auth/admin-verify-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, otp }),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "OTP verification failed");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "OTP verification failed");
             localStorage.setItem("adminEmail", email);
             navigate("/admin");
         } catch (err) {
@@ -95,7 +77,6 @@ export default function AdminLogin() {
             <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-md p-8">
                 <button
                     className="mb-4 text-blue-600 hover:underline text-sm"
-                    type="button"
                     onClick={() => navigate("/")}
                 >
                     ← Back to Main Page
@@ -141,16 +122,16 @@ export default function AdminLogin() {
                     <div className="flex space-x-2">
                         <button
                             type="button"
-                            onClick={handleRequestOtp}
+                            onClick={requestOtp}
                             className="flex-1 bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700"
                         >
                             Request OTP
                         </button>
                         <button
                             type="button"
-                            onClick={handleResendOtp}
-                            className="flex-1 bg-gray-600 text-white py-2 rounded-xl hover:bg-gray-700"
+                            onClick={resendOtp}
                             disabled={!otpRequested}
+                            className="flex-1 bg-gray-600 text-white py-2 rounded-xl hover:bg-gray-700"
                         >
                             Resend OTP
                         </button>

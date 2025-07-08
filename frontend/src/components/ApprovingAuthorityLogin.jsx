@@ -5,26 +5,6 @@ import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
 
 export default function ApprovingAuthorityLogin() {
-    // ...existing state
-    const handleResendOtp = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        try {
-            const response = await fetch("http://localhost:3000/api/auth/approving-authority-login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password, mobile_number: mobile }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Resend failed");
-            alert("OTP resent successfully");
-        } catch (err) {
-            alert("Error: " + err.message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [mobile, setMobile] = useState("");
@@ -33,7 +13,7 @@ export default function ApprovingAuthorityLogin() {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleRequestOtp = async (e) => {
+    const requestOtp = async e => {
         e.preventDefault();
         if (!email || !password || !mobile) {
             alert("Please fill all fields");
@@ -41,15 +21,19 @@ export default function ApprovingAuthorityLogin() {
         }
         setIsLoading(true);
         try {
-            const response = await fetch("http://localhost:3000/api/auth/approving-authority-login", {
+            const res = await fetch("/api/auth/approving-authority-login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password, mobile_number: mobile }),
+                body: JSON.stringify({
+                    email,
+                    password,
+                    mobile_number: mobile
+                })
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Login failed");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Login failed");
             setOtpRequested(true);
-            alert("OTP sent to your registered email id");
+            alert("OTP sent to your registered email");
         } catch (err) {
             alert("Error: " + err.message);
         } finally {
@@ -57,7 +41,9 @@ export default function ApprovingAuthorityLogin() {
         }
     };
 
-    const handleLogin = async (e) => {
+    const resendOtp = requestOtp;
+
+    const verifyOtp = async e => {
         e.preventDefault();
         if (!otpRequested) {
             alert("Please request OTP first");
@@ -69,13 +55,13 @@ export default function ApprovingAuthorityLogin() {
         }
         setIsLoading(true);
         try {
-            const response = await fetch("http://localhost:3000/api/auth/approving-authority-verify-otp", {
+            const res = await fetch("/api/auth/approving-authority-verify-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, otp }),
+                body: JSON.stringify({ email, otp })
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "OTP verification failed");
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "OTP verification failed");
             localStorage.setItem("approvingAuthorityEmail", email);
             navigate("/approving-authority");
         } catch (err) {
@@ -102,16 +88,18 @@ export default function ApprovingAuthorityLogin() {
                 </button>
                 <div className="mb-6 text-center">
                     <img src={logo} alt="LNMIIT Logo" className="mx-auto h-10 w-auto" />
-                    <h2 className="text-2xl font-semibold text-gray-800 mt-2">Approving Authority Login</h2>
+                    <h2 className="text-2xl font-semibold text-gray-800 mt-2">
+                        Approving Authority Login
+                    </h2>
                 </div>
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={verifyOtp} className="space-y-4">
                     <div>
                         <label className="block mb-1 font-medium">Email</label>
                         <input
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                            placeholder="Enter your LNMIIT email id"
+                            placeholder="Enter your LNMIIT email"
                             className="w-full border px-4 py-2 rounded-xl"
                             required
                         />
@@ -141,14 +129,14 @@ export default function ApprovingAuthorityLogin() {
                     <div className="flex space-x-2">
                         <button
                             type="button"
-                            onClick={handleRequestOtp}
+                            onClick={requestOtp}
                             className="flex-1 bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700"
                         >
                             Request OTP
                         </button>
                         <button
                             type="button"
-                            onClick={handleResendOtp}
+                            onClick={resendOtp}
                             className="flex-1 bg-gray-600 text-white py-2 rounded-xl hover:bg-gray-700"
                             disabled={!otpRequested}
                         >

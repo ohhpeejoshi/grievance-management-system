@@ -17,7 +17,9 @@ import About from "./components/About";
 import Faq from "./components/Faq";
 import OfficeBearer from "./components/OfficeBearer";
 import OfficeBearerLogin from "./components/OfficeBearerLogin";
+import ApprovingAuthority from "./components/ApprovingAuthority";
 import ApprovingAuthorityLogin from "./components/ApprovingAuthorityLogin";
+import Admin from "./components/Admin";
 import AdminLogin from "./components/AdminLogin";
 import Register from "./components/Register";
 import Login from "./components/Login";
@@ -44,7 +46,9 @@ function AppContent() {
         <Route path="/faq" element={<Faq />} />
         <Route path="/office-bearer" element={<OfficeBearer />} />
         <Route path="/office-bearer-login" element={<OfficeBearerLogin />} />
+        <Route path="/approving-authority" element={<ApprovingAuthority />} />
         <Route path="/approving-authority-login" element={<ApprovingAuthorityLogin />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

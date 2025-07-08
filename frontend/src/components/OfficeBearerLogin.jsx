@@ -5,26 +5,6 @@ import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
 
 export default function OfficeBearerLogin() {
-    // ...existing state
-    const handleResendOtp = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        try {
-            const response = await fetch("http://localhost:3000/api/auth/office-bearer-login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ department, email, password, mobile_number: mobile }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Resend failed");
-            alert("OTP resent successfully");
-        } catch (err) {
-            alert("Error: " + err.message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const [departments, setDepartments] = useState([]);
     const [department, setDepartment] = useState("");
     const [email, setEmail] = useState("");
@@ -36,7 +16,7 @@ export default function OfficeBearerLogin() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetch("http://localhost:3000/api/grievances/departments")
+        fetch("/api/grievances/departments")
             .then(res => res.json())
             .then(setDepartments)
             .catch(err => console.error("Dept fetch failed:", err));
@@ -50,15 +30,34 @@ export default function OfficeBearerLogin() {
         }
         setIsLoading(true);
         try {
-            const response = await fetch("http://localhost:3000/api/auth/office-bearer-login", {
+            const response = await fetch("/api/auth/office-bearer-login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ department, email, password, mobile_number: mobile }),
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Login failed");
+            if (!response.ok) throw new Error(data.error || "Login failed");
             setOtpRequested(true);
             alert("OTP sent to your registered email id");
+        } catch (err) {
+            alert("Error: " + err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleResendOtp = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const response = await fetch("/api/auth/office-bearer-login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ department, email, password, mobile_number: mobile }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Resend failed");
+            alert("OTP resent successfully");
         } catch (err) {
             alert("Error: " + err.message);
         } finally {
@@ -78,13 +77,13 @@ export default function OfficeBearerLogin() {
         }
         setIsLoading(true);
         try {
-            const response = await fetch("http://localhost:3000/api/auth/office-bearer-verify-otp", {
+            const response = await fetch("/api/auth/office-bearer-verify-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ department, email, otp }),
+                body: JSON.stringify({ email, otp }),
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "OTP verification failed");
+            if (!response.ok) throw new Error(data.error || "OTP verification failed");
             localStorage.setItem("officeBearerEmail", email);
             navigate("/office-bearer");
         } catch (err) {
