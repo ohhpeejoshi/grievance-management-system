@@ -6,9 +6,10 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 import Loader from "./components/Loader";
-import Navbar from "./components/Navbar"; // Student/Faculty/Staff Navbar
+import Navbar from "./components/Navbar";
 import Home from "./components/Home";
 import LandingHome from "./components/LandingHome";
 import TrackGrievance from "./components/TrackGrievance";
@@ -33,7 +34,8 @@ function AppContent() {
 
   return (
     <>
-      {!hideNavbar && <Navbar />} {/* Render Navbar conditionally */}
+      {!hideNavbar && <Navbar />}
+      <Toaster position="top-center" reverseOrder={false} />
       <Routes>
         <Route path="/" element={<LandingHome />} />
         <Route path="/login" element={<Login />} />

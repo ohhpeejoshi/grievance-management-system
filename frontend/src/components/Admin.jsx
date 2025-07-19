@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-
+import toast from 'react-hot-toast';
 
 // Helper for downloading CSV
 const downloadCSV = (data, filename = 'report.csv') => {
     if (!data || data.length === 0) {
-        alert("No data to download.");
+        toast.error("No data to download.");
         return;
     }
     const csvRows = [];
@@ -43,7 +43,7 @@ export default function Admin() {
     const [error, setError] = useState("");
 
     // Form States
-    const [activeForm, setActiveForm] = useState(null); // To control which form is visible
+    const [activeForm, setActiveForm] = useState(null);
     const [newAuthority, setNewAuthority] = useState({ name: '', email: '', password: '', mobile_number: '' });
     const [newLocation, setNewLocation] = useState('');
     const [newDepartment, setNewDepartment] = useState('');
@@ -78,6 +78,7 @@ export default function Admin() {
         }).catch(err => {
             console.error("Fetch error:", err);
             setError("Failed to load admin data.");
+            toast.error("Failed to load admin data.");
             setIsLoading(false);
         });
     }, [navigate]);
@@ -135,6 +136,7 @@ export default function Admin() {
 
     const handleFormSubmit = async (e, endpoint, body, successCallback) => {
         e.preventDefault();
+        const toastId = toast.loading('Submitting...');
         try {
             const res = await fetch(`/api/grievances/admin/${endpoint}`, {
                 method: 'POST',
@@ -145,11 +147,11 @@ export default function Admin() {
                 const errData = await res.json();
                 throw new Error(errData.error || 'Operation failed');
             }
-            alert('Success!');
+            toast.success('Success!', { id: toastId });
             successCallback();
-            setActiveForm(null); // Hide form on success
+            setActiveForm(null);
         } catch (err) {
-            alert(`Error: ${err.message}`);
+            toast.error(`Error: ${err.message}`, { id: toastId });
         }
     };
 
@@ -162,10 +164,10 @@ export default function Admin() {
         if (!comment) return;
         const newDays = prompt("Enter new resolution deadline in days:");
         if (!newDays || isNaN(newDays) || newDays <= 0) {
-            alert("Please enter a valid number of days.");
+            toast.error("Please enter a valid number of days.");
             return;
         }
-
+        const toastId = toast.loading('Reverting grievance...');
         try {
             const res = await fetch(`/api/grievances/admin/revert-to-level-1/${encodeURIComponent(ticketId)}`, {
                 method: 'PUT',
@@ -177,10 +179,10 @@ export default function Admin() {
                 })
             });
             if (!res.ok) throw new Error("Failed to revert grievance.");
-            alert("Grievance reverted to Level 1 and Approving Authority notified.");
+            toast.success("Grievance reverted to Level 1 and Approving Authority notified.", { id: toastId });
             setLevel2Grievances(level2Grievances.filter(g => g.ticket_id !== ticketId));
         } catch (err) {
-            alert(`Error: ${err.message}`);
+            toast.error(`Error: ${err.message}`, { id: toastId });
         }
     };
 

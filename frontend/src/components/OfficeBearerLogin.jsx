@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
+import toast from 'react-hot-toast';
 
 export default function OfficeBearerLogin() {
     const [departments, setDepartments] = useState([]);
-    const [department, setDepartment] = useState(""); // This will store the department ID
+    const [department, setDepartment] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [mobile, setMobile] = useState("");
@@ -27,7 +28,7 @@ export default function OfficeBearerLogin() {
         const departmentName = selectedDepartment ? selectedDepartment.name : '';
 
         if (!departmentName) {
-            alert("Could not find the department name. Please select a department.");
+            toast.error("Could not find the department name. Please select a department.");
             throw new Error("Department name not found");
         }
 
@@ -45,16 +46,17 @@ export default function OfficeBearerLogin() {
     const handleRequestOtp = async (e) => {
         e.preventDefault();
         if (!department || !email || !password || !mobile) {
-            alert("Please fill all fields");
+            toast.error("Please fill all fields");
             return;
         }
         setIsLoading(true);
+        const toastId = toast.loading('Requesting OTP...');
         try {
             await sendLoginRequest();
             setOtpRequested(true);
-            alert("OTP sent to your registered email id");
+            toast.success("OTP sent to your registered email id", { id: toastId });
         } catch (err) {
-            alert("Error: " + err.message);
+            toast.error("Error: " + err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -63,11 +65,12 @@ export default function OfficeBearerLogin() {
     const handleResendOtp = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        const toastId = toast.loading('Resending OTP...');
         try {
             await sendLoginRequest();
-            alert("OTP resent successfully");
+            toast.success("OTP resent successfully", { id: toastId });
         } catch (err) {
-            alert("Error: " + err.message);
+            toast.error("Error: " + err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -76,14 +79,15 @@ export default function OfficeBearerLogin() {
     const handleLogin = async (e) => {
         e.preventDefault();
         if (!otpRequested) {
-            alert("Please request OTP first");
+            toast.error("Please request OTP first");
             return;
         }
         if (!otp) {
-            alert("Please enter OTP");
+            toast.error("Please enter OTP");
             return;
         }
         setIsLoading(true);
+        const toastId = toast.loading('Logging in...');
         try {
             const response = await fetch("/api/auth/office-bearer-verify-otp", {
                 method: "POST",
@@ -93,15 +97,12 @@ export default function OfficeBearerLogin() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "OTP verification failed");
 
-            // **THE FIX IS HERE:** This line saves the department ID to local storage.
             localStorage.setItem("departmentId", department);
-
-            // This line was in your original file and should remain.
             localStorage.setItem("officeBearerEmail", email);
-
+            toast.success("Login successful!", { id: toastId });
             navigate("/office-bearer");
         } catch (err) {
-            alert("Error: " + err.message);
+            toast.error("Error: " + err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }

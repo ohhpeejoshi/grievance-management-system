@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, ChevronDown, ChevronUp, Printer } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Modal = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
@@ -50,6 +51,7 @@ export default function OfficeBearer() {
         }).catch(err => {
             console.error("Fetch error:", err);
             setError("Failed to fetch data from the server.");
+            toast.error("Failed to fetch data from the server.");
             setIsLoading(false);
         });
     }, [departmentId]);
@@ -84,9 +86,10 @@ export default function OfficeBearer() {
 
     const handleAssignGrievance = async () => {
         if (!selectedWorker) {
-            alert("Please select a worker.");
+            toast.error("Please select a worker.");
             return;
         }
+        const toastId = toast.loading('Assigning grievance...');
         try {
             const encodedTicketId = encodeURIComponent(selectedGrievance.ticket_id);
             const officeBearerEmail = localStorage.getItem("officeBearerEmail");
@@ -103,28 +106,46 @@ export default function OfficeBearer() {
             const updatedGrievances = grievances.map(g => g.ticket_id === selectedGrievance.ticket_id ? { ...g, status: 'In Progress' } : g);
             setGrievances(updatedGrievances);
             setAssignModalOpen(false);
-            alert("Grievance assigned successfully!");
+            toast.success("Grievance assigned successfully!", { id: toastId });
         } catch (err) {
-            alert(err.message);
+            toast.error(err.message, { id: toastId });
         }
     };
 
     const handleResolveGrievance = async (ticketId) => {
-        if (!window.confirm("Are you sure you want to mark this grievance as Resolved?")) return;
+        toast((t) => (
+            <span>
+                Are you sure you want to mark this as resolved?
+                <button onClick={() => {
+                    toast.dismiss(t.id);
+                    resolveGrievance(ticketId);
+                }} className="ml-2 bg-green-500 text-white px-2 py-1 rounded">
+                    Yes
+                </button>
+                <button onClick={() => toast.dismiss(t.id)} className="ml-2 bg-red-500 text-white px-2 py-1 rounded">
+                    No
+                </button>
+            </span>
+        ));
+    };
+
+    const resolveGrievance = async (ticketId) => {
+        const toastId = toast.loading('Resolving grievance...');
         try {
             const encodedTicketId = encodeURIComponent(ticketId);
             const res = await fetch(`/api/grievances/${encodedTicketId}/resolve`, { method: 'PUT' });
             if (!res.ok) throw new Error("Failed to resolve grievance.");
             const updatedGrievances = grievances.map(g => g.ticket_id === ticketId ? { ...g, status: 'Resolved' } : g);
             setGrievances(updatedGrievances);
-            alert("Grievance resolved successfully!");
+            toast.success("Grievance resolved successfully!", { id: toastId });
         } catch (err) {
-            alert(err.message);
+            toast.error(err.message, { id: toastId });
         }
-    };
+    }
 
     const handleAddWorker = async (e) => {
         e.preventDefault();
+        const toastId = toast.loading('Adding worker...');
         try {
             const res = await fetch('/api/grievances/workers', {
                 method: 'POST',
@@ -136,9 +157,9 @@ export default function OfficeBearer() {
             setWorkers([...workers, { id: data.workerId, ...newWorker, department_id: departmentId }]);
             setNewWorker({ name: '', email: '', phone_number: '' });
             setAddWorkerModalOpen(false);
-            alert("Worker added successfully!");
+            toast.success("Worker added successfully!", { id: toastId });
         } catch (err) {
-            alert(err.message);
+            toast.error(err.message, { id: toastId });
         }
     };
 

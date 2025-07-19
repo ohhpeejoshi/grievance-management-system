@@ -3,6 +3,7 @@ import { useState } from "react";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
+import toast from 'react-hot-toast';
 
 export default function ForgotPassword() {
     const [isLoading, setIsLoading] = useState(false);
@@ -10,17 +11,16 @@ export default function ForgotPassword() {
     const [otpRequested, setOtpRequested] = useState(false);
     const [otp, setOtp] = useState("");
     const [newPassword, setNewPassword] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
     const navigate = useNavigate();
 
     const handleRequestOtp = async (e) => {
         e.preventDefault();
-        setErrorMessage("");
         if (!identifier) {
-            setErrorMessage("Please enter your email or mobile number.");
+            toast.error("Please enter your email or mobile number.");
             return;
         }
 
+        const toastId = toast.loading('Requesting OTP...');
         try {
             const res = await fetch("http://localhost:3000/api/auth/forgot-password", {
                 method: "POST",
@@ -31,33 +31,32 @@ export default function ForgotPassword() {
 
             if (!res.ok) {
                 if (data.error && data.error.toLowerCase().includes("not found")) {
-                    setErrorMessage("User not registered. Please register below.");
+                    throw new Error("User not registered. Please register below.");
                 } else {
-                    setErrorMessage(data.error || "Failed to request OTP.");
+                    throw new Error(data.error || "Failed to request OTP.");
                 }
-                return;
             }
 
-            alert(data.message);
+            toast.success(data.message, { id: toastId });
             setOtpRequested(true);
         } catch (err) {
-            setErrorMessage(err.message);
+            toast.error(err.message, { id: toastId });
         }
     };
 
     const handleReset = async (e) => {
         e.preventDefault();
-        setErrorMessage("");
         if (!otp) {
-            setErrorMessage("Please enter the OTP you received.");
+            toast.error("Please enter the OTP you received.");
             return;
         }
         if (!newPassword) {
-            setErrorMessage("Please enter a new password.");
+            toast.error("Please enter a new password.");
             return;
         }
 
         setIsLoading(true);
+        const toastId = toast.loading('Resetting password...');
         try {
             const res = await fetch("http://localhost:3000/api/auth/reset-password", {
                 method: "POST",
@@ -67,14 +66,13 @@ export default function ForgotPassword() {
             const data = await res.json();
 
             if (!res.ok) {
-                setErrorMessage(data.error || "Failed to reset password.");
-                return;
+                throw new Error(data.error || "Failed to reset password.");
             }
 
-            alert(data.message);
+            toast.success(data.message, { id: toastId });
             navigate("/login");
         } catch (err) {
-            setErrorMessage(err.message);
+            toast.error(err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -95,10 +93,6 @@ export default function ForgotPassword() {
                         Forgot Password
                     </h2>
                 </div>
-
-                {errorMessage && (
-                    <div className="mb-4 text-center text-red-600">{errorMessage}</div>
-                )}
 
                 <form
                     onSubmit={otpRequested ? handleReset : handleRequestOtp}
@@ -155,23 +149,14 @@ export default function ForgotPassword() {
                     </button>
                 </form>
 
-                {errorMessage.toLowerCase().includes("register") ? (
-                    <div className="mt-4 text-center">
-                        <p className="text-sm">Don’t have an account?</p>
-                        <Link to="/register" className="text-blue-600 font-medium">
-                            Register here
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="mt-4 text-center">
-                        <Link
-                            to="/login"
-                            className="text-blue-600 hover:text-blue-700 font-medium text-sm"
-                        >
-                            Back to Login
-                        </Link>
-                    </div>
-                )}
+                <div className="mt-4 text-center">
+                    <Link
+                        to="/login"
+                        className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                    >
+                        Back to Login
+                    </Link>
+                </div>
             </div>
 
             {isLoading && <OtpLoader />}

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import toast from 'react-hot-toast';
 
 export default function SubmitGrievance() {
-    const [locationsList, setLocationsList] = useState([]); // State for dynamic locations
+    const [locationsList, setLocationsList] = useState([]);
     const [userData, setUserData] = useState({ name: "", email: "", mobileNumber: "" });
     const [profileLoading, setProfileLoading] = useState(true);
     const [profileError, setProfileError] = useState("");
@@ -21,7 +22,6 @@ export default function SubmitGrievance() {
     });
     const [previewUrl, setPreviewUrl] = useState(null);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState("");
 
     useEffect(() => {
         const emailFromAuth = localStorage.getItem("userEmail");
@@ -51,31 +51,36 @@ export default function SubmitGrievance() {
             .catch(err => {
                 console.error("Profile fetch failed:", err);
                 setProfileError(err.message);
+                toast.error(err.message);
             })
             .finally(() => setProfileLoading(false));
     }, []);
 
     useEffect(() => {
-        // Fetch departments and locations
         Promise.all([
             fetch("http://localhost:3000/api/grievances/departments").then(res => res.json()),
             fetch("http://localhost:3000/api/grievances/locations").then(res => res.json())
         ]).then(([depts, locs]) => {
             setDepartmentsList(depts);
             setLocationsList(locs);
-        }).catch(err => console.error("Failed to fetch initial data:", err));
+        }).catch(err => {
+            console.error("Failed to fetch initial data:", err);
+            toast.error("Failed to fetch initial data.");
+        });
     }, []);
 
     const handleChange = e => {
         const { name, value } = e.target;
-        setError("");
 
         if (name === "department") {
             setFormData(p => ({ ...p, department: value, category: "", urgency: "Normal" }));
             fetch(`http://localhost:3000/api/grievances/categories/${value}`)
                 .then(res => res.json())
                 .then(setCategoriesList)
-                .catch(err => console.error("Cat fetch failed:", err));
+                .catch(err => {
+                    console.error("Cat fetch failed:", err);
+                    toast.error("Failed to fetch categories.");
+                });
         }
         else if (name === "category") {
             const catId = parseInt(value, 10);
@@ -100,7 +105,7 @@ export default function SubmitGrievance() {
         if (!file) return;
 
         if (file.size > 2 * 1024 * 1024) {
-            setError("File too large. Max size is 2MB.");
+            toast.error("File too large. Max size is 2MB.");
             setFormData(p => ({ ...p, attachment: null }));
             setPreviewUrl(null);
             return;
@@ -108,14 +113,12 @@ export default function SubmitGrievance() {
 
         setFormData(p => ({ ...p, attachment: file }));
         setPreviewUrl(URL.createObjectURL(file));
-        setError("");
     };
 
     const handleSubmit = async e => {
         e.preventDefault();
-        setError("");
         setSubmitting(true);
-
+        const toastId = toast.loading('Submitting grievance...');
         try {
             const data = new FormData();
             data.append("title", formData.title);
@@ -136,7 +139,16 @@ export default function SubmitGrievance() {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || "Submission failed");
 
-            alert(`✅ Grievance submitted successfully.\n📎 Ticket_id: ${json.ticket_id || "Error generating ticket id, check your mail!"}`);
+            toast.success(
+                (t) => (
+                    <div>
+                        Grievance submitted successfully.
+                        <br />
+                        Ticket ID: <strong>{json.ticket_id}</strong>
+                    </div>
+                ),
+                { id: toastId, duration: 6000 }
+            );
 
             setFormData({
                 title: "",
@@ -153,7 +165,7 @@ export default function SubmitGrievance() {
             setPreviewUrl(null);
         } catch (err) {
             console.error(err);
-            setError(err.message);
+            toast.error(err.message, { id: toastId });
         } finally {
             setSubmitting(false);
         }
@@ -181,7 +193,6 @@ export default function SubmitGrievance() {
                 <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">
                     Submit a Grievance
                 </h2>
-                {error && <div className="mb-4 text-center text-red-600">{error}</div>}
 
                 <div className="mb-8 p-6 bg-white rounded-xl shadow">
                     <h3 className="font-semibold text-lg mb-4">Complainant Information</h3>

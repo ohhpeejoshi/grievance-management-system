@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
+import toast from 'react-hot-toast';
 
 export default function ApprovingAuthorityLogin() {
     const [email, setEmail] = useState("");
@@ -16,10 +17,11 @@ export default function ApprovingAuthorityLogin() {
     const requestOtp = async e => {
         e.preventDefault();
         if (!email || !password || !mobile) {
-            alert("Please fill all fields");
+            toast.error("Please fill all fields");
             return;
         }
         setIsLoading(true);
+        const toastId = toast.loading('Requesting OTP...');
         try {
             const res = await fetch("/api/auth/approving-authority-login", {
                 method: "POST",
@@ -33,9 +35,9 @@ export default function ApprovingAuthorityLogin() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Login failed");
             setOtpRequested(true);
-            alert("OTP sent to your registered email");
+            toast.success("OTP sent to your registered email", { id: toastId });
         } catch (err) {
-            alert("Error: " + err.message);
+            toast.error("Error: " + err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -46,14 +48,15 @@ export default function ApprovingAuthorityLogin() {
     const verifyOtp = async e => {
         e.preventDefault();
         if (!otpRequested) {
-            alert("Please request OTP first");
+            toast.error("Please request OTP first");
             return;
         }
         if (!otp) {
-            alert("Please enter OTP");
+            toast.error("Please enter OTP");
             return;
         }
         setIsLoading(true);
+        const toastId = toast.loading('Verifying OTP...');
         try {
             const res = await fetch("/api/auth/approving-authority-verify-otp", {
                 method: "POST",
@@ -63,9 +66,10 @@ export default function ApprovingAuthorityLogin() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "OTP verification failed");
             localStorage.setItem("approvingAuthorityEmail", email);
+            toast.success("Login successful!", { id: toastId });
             navigate("/approving-authority");
         } catch (err) {
-            alert("Error: " + err.message);
+            toast.error("Error: " + err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }

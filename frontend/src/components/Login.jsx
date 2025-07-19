@@ -3,6 +3,7 @@ import { useState } from "react";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
+import toast from 'react-hot-toast';
 
 export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -16,11 +17,12 @@ export default function Login() {
     const handleRequestOtp = async (e) => {
         e.preventDefault();
         if (!email || !password || !mobile) {
-            alert("Please fill all fields");
+            toast.error("Please fill all fields");
             return;
         }
 
         setIsLoading(true);
+        const toastId = toast.loading('Requesting OTP...');
         try {
             const response = await fetch("http://localhost:3000/api/auth/login", {
                 method: "POST",
@@ -31,9 +33,9 @@ export default function Login() {
             if (!response.ok) throw new Error(data.message || "Login failed");
 
             setOtpRequested(true);
-            alert("OTP sent to your registered email id");
+            toast.success("OTP sent to your registered email id", { id: toastId });
         } catch (err) {
-            alert("Error: " + err.message);
+            toast.error("Error: " + err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -42,6 +44,7 @@ export default function Login() {
     const handleResendOtp = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        const toastId = toast.loading('Resending OTP...');
         try {
             const response = await fetch("http://localhost:3000/api/auth/login", {
                 method: "POST",
@@ -51,9 +54,9 @@ export default function Login() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || "Resend failed");
 
-            alert("OTP resent successfully");
+            toast.success("OTP resent successfully", { id: toastId });
         } catch (err) {
-            alert("Error: " + err.message);
+            toast.error("Error: " + err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -62,15 +65,16 @@ export default function Login() {
     const handleLogin = async (e) => {
         e.preventDefault();
         if (!otpRequested) {
-            alert("Please request OTP first");
+            toast.error("Please request OTP first");
             return;
         }
         if (!otp) {
-            alert("Please enter OTP");
+            toast.error("Please enter OTP");
             return;
         }
 
         setIsLoading(true);
+        const toastId = toast.loading('Logging in...');
         try {
             const response = await fetch("http://localhost:3000/api/auth/verify-otp", {
                 method: "POST",
@@ -81,9 +85,10 @@ export default function Login() {
             if (!response.ok) throw new Error(data.message || "OTP verification failed");
 
             localStorage.setItem("userEmail", email);
+            toast.success("Login successful!", { id: toastId });
             navigate("/home");
         } catch (err) {
-            alert("Error: " + err.message);
+            toast.error("Error: " + err.message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
