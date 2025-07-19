@@ -13,7 +13,7 @@ dotenv.config();
         const name = 'Office Bearer';
         const email = 'officebearer@lnmiit.ac.in';
         const plainPassword = '123456789';
-        const mobile_number = '7906726971';
+        const mobile_number = '7357222550';
         const role = 'Office Bearer';
         const department = 'IT';
 
