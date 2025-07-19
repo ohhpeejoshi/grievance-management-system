@@ -65,26 +65,19 @@ export const submitGrievance = async (req, res) => {
 export const trackGrievance = async (req, res) => {
     try {
         const { ticket_id } = req.params;
-
-        // THE FIX: Format the timestamps to IST directly in the SQL query.
-        // The CONVERT_TZ function converts the UTC time from the database to IST.
+        // THE FIX: Select the raw timestamp. Since it's now stored as IST, no conversion is needed here.
         const [rows] = await db.promise().query(
             `SELECT 
                 ticket_id, 
                 status, 
-                CONVERT_TZ(created_at, '+00:00', '+05:30') as created_at, 
-                CONVERT_TZ(updated_at, '+00:00', '+05:30') as updated_at 
+                created_at, 
+                updated_at 
              FROM grievances 
              WHERE ticket_id = ?`,
             [ticket_id]
         );
-
-        if (!rows.length) {
-            return res.status(404).json({ error: 'Grievance not found' });
-        }
-
+        if (!rows.length) return res.status(404).json({ error: 'Grievance not found' });
         res.json(rows[0]);
-
     } catch (err) {
         console.error('Error tracking grievance:', err);
         res.status(500).json({ error: 'Server error while tracking grievance' });
@@ -93,7 +86,19 @@ export const trackGrievance = async (req, res) => {
 
 export const getGrievancesByDepartment = (req, res) => {
     const { departmentId } = req.params;
-    getGrievancesByDepartmentFromModel(departmentId, (err, results) => {
+    // THE FIX: Select the raw timestamp. No conversion is needed here.
+    const sql = `
+        SELECT 
+            g.*, 
+            c.name as category_name, 
+            u.roll_number
+        FROM grievances g
+        JOIN categories c ON g.category_id = c.id
+        LEFT JOIN users u ON g.email = u.email
+        WHERE g.department_id = ?
+        ORDER BY g.created_at DESC
+    `;
+    db.query(sql, [departmentId], (err, results) => {
         if (err) return res.status(500).json({ error: 'DB error fetching grievances' });
         res.json(results);
     });
@@ -120,39 +125,40 @@ export const assignGrievance = async (req, res) => {
         const { ticketId } = req.params;
         const { workerId, officeBearerEmail } = req.body;
 
-        await db.promise().query(
-            'UPDATE grievances SET status = ?, assigned_worker_id = ? WHERE ticket_id = ?',
-            ['In Progress', workerId, ticketId]
-        );
+        // The model now handles updating the `updated_at` field correctly.
+        updateGrievanceStatus(ticketId, 'In Progress', workerId, async (err) => {
+            if (err) throw err;
 
-        const [grievanceDetails] = await db.promise().query(
-            `SELECT g.*, c.name as category_name, w.name AS worker_name, w.email AS worker_email, w.phone_number AS worker_phone, u.roll_number
-             FROM grievances g
-             LEFT JOIN categories c ON g.category_id = c.id
-             LEFT JOIN workers w ON g.assigned_worker_id = w.id
-             LEFT JOIN users u ON g.email = u.email
-             WHERE g.ticket_id = ?`,
-            [ticketId]
-        );
+            // THE FIX: Fetch the raw grievance details for the email.
+            const [grievanceDetails] = await db.promise().query(
+                `SELECT g.*, c.name as category_name, w.name AS worker_name, w.email AS worker_email, w.phone_number AS worker_phone, u.roll_number
+                 FROM grievances g
+                 LEFT JOIN categories c ON g.category_id = c.id
+                 LEFT JOIN workers w ON g.assigned_worker_id = w.id
+                 LEFT JOIN users u ON g.email = u.email
+                 WHERE g.ticket_id = ?`,
+                [ticketId]
+            );
 
-        const [bearerDetails] = await db.promise().query(
-            `SELECT name, email, mobile_number FROM office_bearers WHERE email = ?`,
-            [officeBearerEmail]
-        );
+            const [bearerDetails] = await db.promise().query(
+                `SELECT name, email, mobile_number FROM office_bearers WHERE email = ?`,
+                [officeBearerEmail]
+            );
 
-        if (grievanceDetails.length) {
-            const grievance = grievanceDetails[0];
-            const worker = { name: grievance.worker_name, email: grievance.worker_email, phone_number: grievance.worker_phone };
-            const officeBearer = bearerDetails.length ? bearerDetails[0] : null;
+            if (grievanceDetails.length) {
+                const grievance = grievanceDetails[0];
+                const worker = { name: grievance.worker_name, email: grievance.worker_email, phone_number: grievance.worker_phone };
+                const officeBearer = bearerDetails.length ? bearerDetails[0] : null;
 
-            sendGrievanceAssignedEmailToUser(grievance.email, grievance.complainant_name, ticketId, worker).catch(console.error);
+                sendGrievanceAssignedEmailToUser(grievance.email, grievance.complainant_name, ticketId, worker).catch(console.error);
 
-            if (officeBearer) {
-                sendGrievanceAssignedEmailToWorker(worker.email, worker.name, ticketId, grievance, officeBearer).catch(console.error);
+                if (officeBearer) {
+                    sendGrievanceAssignedEmailToWorker(worker.email, worker.name, ticketId, grievance, officeBearer).catch(console.error);
+                }
             }
-        }
 
-        res.status(200).json({ message: 'Grievance assigned successfully' });
+            res.status(200).json({ message: 'Grievance assigned successfully' });
+        });
     } catch (err) {
         console.error('Error assigning grievance:', err);
         res.status(500).json({ error: 'Failed to assign grievance due to a server error.' });
@@ -162,19 +168,20 @@ export const assignGrievance = async (req, res) => {
 export const resolveGrievance = async (req, res) => {
     try {
         const { ticketId } = req.params;
-        await db.promise().query(
-            'UPDATE grievances SET status = ? WHERE ticket_id = ?',
-            ['Resolved', ticketId]
-        );
-        const [details] = await db.promise().query(
-            `SELECT email, complainant_name FROM grievances WHERE ticket_id = ?`,
-            [ticketId]
-        );
-        if (details.length) {
-            const grievance = details[0];
-            sendGrievanceStatusUpdateEmail(grievance.email, grievance.complainant_name, ticketId, 'Resolved').catch(console.error);
-        }
-        res.status(200).json({ message: 'Grievance resolved successfully' });
+        // The model now handles updating the `updated_at` field correctly.
+        updateGrievanceStatus(ticketId, 'Resolved', null, async (err) => {
+            if (err) throw err;
+
+            const [details] = await db.promise().query(
+                `SELECT email, complainant_name FROM grievances WHERE ticket_id = ?`,
+                [ticketId]
+            );
+            if (details.length) {
+                const grievance = details[0];
+                sendGrievanceStatusUpdateEmail(grievance.email, grievance.complainant_name, ticketId, 'Resolved').catch(console.error);
+            }
+            res.status(200).json({ message: 'Grievance resolved successfully' });
+        });
     } catch (err) {
         console.error('Error resolving grievance:', err);
         res.status(500).json({ error: 'Failed to resolve grievance due to a server error.' });

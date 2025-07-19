@@ -38,6 +38,9 @@ export const createGrievance = (data, callback) => {
     email
   } = data;
 
+  // THE FIX: This query now explicitly converts the current UTC time
+  // to the Indian timezone ('+05:30') before inserting it into the database.
+  // This is the most robust method and removes all ambiguity.
   const sql = `
     INSERT INTO grievances
       (ticket_id,
@@ -51,9 +54,11 @@ export const createGrievance = (data, callback) => {
        mobile_number,
        complainant_name,
        email,
-       status)
+       status,
+       created_at,
+       updated_at)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted')
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', CONVERT_TZ(NOW(), 'UTC', '+05:30'), CONVERT_TZ(NOW(), 'UTC', '+05:30'))
   `;
 
   db.query(
@@ -105,9 +110,10 @@ ORDER BY g.created_at DESC
 
 // Update status (and optionally assigned worker) of a ticket
 export const updateGrievanceStatus = (ticketId, status, workerId, callback) => {
+  // THE FIX: This query now also explicitly converts the time to IST for the `updated_at` field.
   const sql = workerId
-    ? `UPDATE grievances SET status = ?, assigned_worker_id = ? WHERE ticket_id = ?`
-    : `UPDATE grievances SET status = ? WHERE ticket_id = ?`;
+    ? `UPDATE grievances SET status = ?, assigned_worker_id = ?, updated_at = CONVERT_TZ(NOW(), 'UTC', '+05:30') WHERE ticket_id = ?`
+    : `UPDATE grievances SET status = ?, updated_at = CONVERT_TZ(NOW(), 'UTC', '+05:30') WHERE ticket_id = ?`;
   const params = workerId
     ? [status, workerId, ticketId]
     : [status, ticketId];

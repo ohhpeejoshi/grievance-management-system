@@ -32,16 +32,26 @@ export default function TrackGrievance() {
         }
     };
 
-    // This simplified function correctly formats the IST time from the server.
+    /**
+     * THE FIX: This function now simply formats the date string it receives from the API.
+     * No timezone logic is needed here because the backend provides the correct IST time.
+     */
     const formatIST = (dateString) => {
         if (!dateString) return "N/A";
         const date = new Date(dateString);
         if (isNaN(date.getTime())) {
             return "Invalid Date";
         }
-        return date.toLocaleString("en-IN");
+        return date.toLocaleString('en-IN', {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: true,
+        });
     };
-
 
     const steps = ["Submitted", "In Progress", "Resolved"];
     const currentStepIndex = data ? steps.indexOf(data.status) : -1;
