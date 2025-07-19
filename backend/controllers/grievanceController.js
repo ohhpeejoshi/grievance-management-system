@@ -65,12 +65,26 @@ export const submitGrievance = async (req, res) => {
 export const trackGrievance = async (req, res) => {
     try {
         const { ticket_id } = req.params;
+
+        // THE FIX: Format the timestamps to IST directly in the SQL query.
+        // The CONVERT_TZ function converts the UTC time from the database to IST.
         const [rows] = await db.promise().query(
-            `SELECT ticket_id, status, created_at, updated_at FROM grievances WHERE ticket_id = ?`,
+            `SELECT 
+                ticket_id, 
+                status, 
+                CONVERT_TZ(created_at, '+00:00', '+05:30') as created_at, 
+                CONVERT_TZ(updated_at, '+00:00', '+05:30') as updated_at 
+             FROM grievances 
+             WHERE ticket_id = ?`,
             [ticket_id]
         );
-        if (!rows.length) return res.status(404).json({ error: 'Grievance not found' });
+
+        if (!rows.length) {
+            return res.status(404).json({ error: 'Grievance not found' });
+        }
+
         res.json(rows[0]);
+
     } catch (err) {
         console.error('Error tracking grievance:', err);
         res.status(500).json({ error: 'Server error while tracking grievance' });

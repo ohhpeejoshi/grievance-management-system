@@ -18,7 +18,7 @@ export default function TrackGrievance() {
         try {
             const encodedId = encodeURIComponent(grievanceId);
             const res = await axios.get(
-                `http://localhost:3000/api/grievances/track/${encodedId}`
+                `/api/grievances/track/${encodedId}`
             );
             setData(res.data);
         } catch (err) {
@@ -31,6 +31,17 @@ export default function TrackGrievance() {
             setIsLoading(false);
         }
     };
+
+    // This simplified function correctly formats the IST time from the server.
+    const formatIST = (dateString) => {
+        if (!dateString) return "N/A";
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return "Invalid Date";
+        }
+        return date.toLocaleString("en-IN");
+    };
+
 
     const steps = ["Submitted", "In Progress", "Resolved"];
     const currentStepIndex = data ? steps.indexOf(data.status) : -1;
@@ -85,10 +96,10 @@ export default function TrackGrievance() {
 
                         <div className="mt-6 border-t pt-4 text-sm text-gray-700 space-y-2">
                             <p>
-                                <strong>Submitted On:</strong> {new Date(data.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                                <strong>Submitted On:</strong> {formatIST(data.created_at)}
                             </p>
                             <p>
-                                <strong>Last Updated:</strong> {new Date(data.updated_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                                <strong>Last Updated:</strong> {formatIST(data.updated_at)}
                             </p>
                         </div>
                     </div>
