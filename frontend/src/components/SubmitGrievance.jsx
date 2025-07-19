@@ -1,15 +1,7 @@
 import { useState, useEffect } from "react";
 
 export default function SubmitGrievance() {
-    const locations = [
-        "BH1", "BH2", "BH3", "BH4-tower1", "BH4-tower2", "GH", "Faculty Quarters",
-        "Guest House", "Lecture Hall Complex", "Academic Block", "Main Gate 1",
-        "Main Gate 2", "Sports Complex Area", "Medical Unit", "Mess A", "Mess B",
-        "Mess C", "Canteen Area", "Sports Ground", "MME Workshop", "MME Building",
-        "Balji Vihar Apartments", "Central Library", "Maintenance Store",
-        "Material Synthesis Lab", "Sub Station", "Admission Cell", "Faculty Offices"
-    ];
-
+    const [locationsList, setLocationsList] = useState([]); // State for dynamic locations
     const [userData, setUserData] = useState({ name: "", email: "", mobileNumber: "" });
     const [profileLoading, setProfileLoading] = useState(true);
     const [profileError, setProfileError] = useState("");
@@ -64,10 +56,14 @@ export default function SubmitGrievance() {
     }, []);
 
     useEffect(() => {
-        fetch("http://localhost:3000/api/grievances/departments")
-            .then(res => res.json())
-            .then(setDepartmentsList)
-            .catch(err => console.error("Dept fetch failed:", err));
+        // Fetch departments and locations
+        Promise.all([
+            fetch("http://localhost:3000/api/grievances/departments").then(res => res.json()),
+            fetch("http://localhost:3000/api/grievances/locations").then(res => res.json())
+        ]).then(([depts, locs]) => {
+            setDepartmentsList(depts);
+            setLocationsList(locs);
+        }).catch(err => console.error("Failed to fetch initial data:", err));
     }, []);
 
     const handleChange = e => {
@@ -280,7 +276,7 @@ export default function SubmitGrievance() {
                             required
                         >
                             <option value="">Select Location</option>
-                            {locations.map(loc => (
+                            {locationsList.map(loc => (
                                 <option key={loc} value={loc}>{loc}</option>
                             ))}
                         </select>
