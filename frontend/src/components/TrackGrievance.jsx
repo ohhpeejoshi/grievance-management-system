@@ -5,27 +5,35 @@ export default function TrackGrievance() {
     const [grievanceId, setGrievanceId] = useState("");
     const [data, setData] = useState(null);
     const [error, setError] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleTrack = async () => {
+        if (!grievanceId) {
+            setError("Please enter a Grievance ID.");
+            return;
+        }
         setError("");
         setData(null);
+        setIsLoading(true);
         try {
+            const encodedId = encodeURIComponent(grievanceId);
             const res = await axios.get(
-                `http://localhost:3000/api/grievances/track/${encodeURIComponent(
-                    grievanceId
-                )}`
+                `http://localhost:3000/api/grievances/track/${encodedId}`
             );
             setData(res.data);
         } catch (err) {
             setError(
                 err.response?.status === 404
-                    ? "Grievance not found"
-                    : "Server error"
+                    ? "Grievance not found. Please check the ID and try again."
+                    : "A server error occurred. Please try again later."
             );
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const steps = ["Submitted", "In Progress", "Resolved"];
+    const currentStepIndex = data ? steps.indexOf(data.status) : -1;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 flex items-center justify-center px-4">
@@ -40,14 +48,16 @@ export default function TrackGrievance() {
                         type="text"
                         value={grievanceId}
                         onChange={(e) => setGrievanceId(e.target.value)}
-                        className="px-4 py-3 border border-gray-300 rounded-lg shadow-sm w-72 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        placeholder="Enter Grievance ID"
+                        onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
+                        className="px-4 py-3 border border-gray-300 rounded-lg shadow-sm w-full sm:w-72 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        placeholder="e.g., lnm/2025/07/0001"
                     />
                     <button
                         onClick={handleTrack}
-                        className="!bg-blue-500 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:bg-blue-600 transition-all"
+                        disabled={isLoading}
+                        className="!bg-blue-500 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:bg-blue-600 transition-all disabled:bg-gray-400"
                     >
-                        Track
+                        {isLoading ? "Tracking..." : "Track"}
                     </button>
                 </div>
 
@@ -56,37 +66,31 @@ export default function TrackGrievance() {
                 )}
 
                 {data && (
-                    <div className="mt-10 text-left">
-                        <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                            Status: <span className="font-normal">{data.status}</span>
+                    <div className="mt-10 text-left p-6 bg-white/50 rounded-lg">
+                        <h3 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
+                            Status: <span className="text-blue-600">{data.status}</span>
                         </h3>
 
-                        <div className="flex justify-between items-center mb-6">
-                            {steps.map((step, idx) => {
-                                const isActive = steps.indexOf(data.status) >= idx;
-                                return (
-                                    <div key={step} className="flex-1 text-center">
-                                        <div
-                                            className={`mx-auto w-8 h-8 rounded-full flex items-center justify-center
-                        ${isActive
-                                                    ? "bg-blue-500 text-white"
-                                                    : "bg-gray-200 text-gray-600"
-                                                }`}
-                                        >
-                                            {idx + 1}
-                                        </div>
-                                        <p className="mt-2 text-sm">{step}</p>
-                                    </div>
-                                );
-                            })}
+                        <div className="flex justify-between items-center mb-2 px-2">
+                            {steps.map((step) => (
+                                <span key={step} className="text-xs sm:text-sm font-medium text-gray-600">{step}</span>
+                            ))}
+                        </div>
+                        <div className="relative w-full bg-gray-200 rounded-full h-2.5">
+                            <div
+                                className="bg-blue-500 h-2.5 rounded-full transition-all duration-500"
+                                style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+                            ></div>
                         </div>
 
-                        <p className="text-sm text-gray-600">
-                            Submitted on: {new Date(data.created_at).toLocaleString()}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                            Last updated: {new Date(data.updated_at).toLocaleString()}
-                        </p>
+                        <div className="mt-6 border-t pt-4 text-sm text-gray-700 space-y-2">
+                            <p>
+                                <strong>Submitted On:</strong> {new Date(data.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                            </p>
+                            <p>
+                                <strong>Last Updated:</strong> {new Date(data.updated_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>

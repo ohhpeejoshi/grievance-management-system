@@ -6,7 +6,7 @@ import OtpLoader from "./OtpLoader";
 
 export default function OfficeBearerLogin() {
     const [departments, setDepartments] = useState([]);
-    const [department, setDepartment] = useState("");
+    const [department, setDepartment] = useState(""); // This will store the department ID
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [mobile, setMobile] = useState("");
@@ -22,6 +22,26 @@ export default function OfficeBearerLogin() {
             .catch(err => console.error("Dept fetch failed:", err));
     }, []);
 
+    const sendLoginRequest = async () => {
+        const selectedDepartment = departments.find(d => d.id === parseInt(department));
+        const departmentName = selectedDepartment ? selectedDepartment.name : '';
+
+        if (!departmentName) {
+            alert("Could not find the department name. Please select a department.");
+            throw new Error("Department name not found");
+        }
+
+        const response = await fetch("/api/auth/office-bearer-login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ department: departmentName, email, password, mobile_number: mobile }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Login request failed");
+        return data;
+    }
+
     const handleRequestOtp = async (e) => {
         e.preventDefault();
         if (!department || !email || !password || !mobile) {
@@ -30,13 +50,7 @@ export default function OfficeBearerLogin() {
         }
         setIsLoading(true);
         try {
-            const response = await fetch("/api/auth/office-bearer-login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ department, email, password, mobile_number: mobile }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Login failed");
+            await sendLoginRequest();
             setOtpRequested(true);
             alert("OTP sent to your registered email id");
         } catch (err) {
@@ -50,13 +64,7 @@ export default function OfficeBearerLogin() {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const response = await fetch("/api/auth/office-bearer-login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ department, email, password, mobile_number: mobile }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Resend failed");
+            await sendLoginRequest();
             alert("OTP resent successfully");
         } catch (err) {
             alert("Error: " + err.message);
@@ -84,7 +92,13 @@ export default function OfficeBearerLogin() {
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "OTP verification failed");
+
+            // **THE FIX IS HERE:** This line saves the department ID to local storage.
+            localStorage.setItem("departmentId", department);
+
+            // This line was in your original file and should remain.
             localStorage.setItem("officeBearerEmail", email);
+
             navigate("/office-bearer");
         } catch (err) {
             alert("Error: " + err.message);
@@ -123,7 +137,7 @@ export default function OfficeBearerLogin() {
                         >
                             <option value="">Select Department</option>
                             {departments.map((d) => (
-                                <option key={d.id} value={d.name}>{d.name}</option>
+                                <option key={d.id} value={d.id}>{d.name}</option>
                             ))}
                         </select>
                     </div>
