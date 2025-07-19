@@ -2,7 +2,8 @@ import {
     getAllDepartments,
     getCategoriesByDept,
     createGrievance,
-    getGrievancesByDepartment as getGrievancesByDepartmentFromModel
+    getGrievancesByDepartment as getGrievancesByDepartmentFromModel,
+    updateGrievanceStatus
 } from '../models/Grievance.js';
 import { getWorkersByDepartment, createWorker } from '../models/Worker.js';
 import {
