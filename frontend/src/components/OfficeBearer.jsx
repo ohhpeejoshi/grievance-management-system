@@ -213,11 +213,17 @@ export default function OfficeBearer() {
                                         <td className="py-3 px-4 font-mono text-sm">{g.ticket_id}</td>
                                         <td className="py-3 px-4">{g.title}</td>
                                         <td className="py-3 px-4"><span className={`font-bold ${g.urgency === 'Emergency' ? 'text-red-600' : g.urgency === 'High' ? 'text-yellow-600' : 'text-green-600'}`}>{g.urgency}</span></td>
-                                        <td className="py-3 px-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${g.status === "Pending" || g.status === "Submitted" ? "bg-yellow-200 text-yellow-800" : g.status === "In Progress" ? "bg-blue-200 text-blue-800" : "bg-green-200 text-green-800"}`}>{g.status}</span></td>
+                                        <td className="py-3 px-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${g.is_escalated ? 'bg-red-200 text-red-800' : g.status === "Pending" || g.status === "Submitted" ? "bg-yellow-200 text-yellow-800" : g.status === "In Progress" ? "bg-blue-200 text-blue-800" : "bg-green-200 text-green-800"}`}>{g.is_escalated ? 'Escalated' : g.status}</span></td>
                                         <td className="py-3 px-4">{new Date(g.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
                                         <td className="py-3 px-4 flex gap-2">
-                                            {g.status === 'Submitted' && (<button onClick={() => openAssignModal(g)} className="bg-blue-500 text-white px-3 py-1 rounded shadow hover:bg-blue-600">Assign</button>)}
-                                            {g.status === 'In Progress' && (<button onClick={() => handleResolveGrievance(g.ticket_id)} className="bg-green-500 text-white px-3 py-1 rounded shadow hover:bg-green-600">Resolve</button>)}
+                                            {g.is_escalated ? (
+                                                <span className="text-red-500 font-bold">Locked</span>
+                                            ) : (
+                                                <>
+                                                    {g.status === 'Submitted' && (<button onClick={() => openAssignModal(g)} className="bg-blue-500 text-white px-3 py-1 rounded shadow hover:bg-blue-600">Assign</button>)}
+                                                    {g.status === 'In Progress' && (<button onClick={() => handleResolveGrievance(g.ticket_id)} className="bg-green-500 text-white px-3 py-1 rounded shadow hover:bg-green-600">Resolve</button>)}
+                                                </>
+                                            )}
                                             <button onClick={() => handlePrint(g)} className="bg-gray-500 text-white p-2 rounded shadow hover:bg-gray-600"><Printer size={16} /></button>
                                         </td>
                                     </tr>

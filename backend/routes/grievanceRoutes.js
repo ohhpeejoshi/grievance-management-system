@@ -3,6 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import {
     listDepartments,
+    listLocations,
     listCategories,
     submitGrievance,
     trackGrievance,
@@ -10,33 +11,49 @@ import {
     listWorkersByDepartment,
     addNewWorker,
     assignGrievance,
-    resolveGrievance
+    resolveGrievance,
+    getEscalatedGrievances,
+    revertGrievance,
+    addOfficeBearer,
+    getAllGrievancesForAdmin,
+    getAdminDashboardStats,
+    getLevel2Grievances,
+    revertToLevel1,
+    addApprovingAuthority,
+    addLocation,
+    addDepartment,
+    addCategory
 } from '../controllers/grievanceController.js';
 
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// --- Grievance Submission and Tracking ---
+// ... (existing routes)
 router.post('/submit', upload.single('attachment'), submitGrievance);
-// THE FIX: Changed the parameter from :ticket_id(*) to :ticket_id(.*)
 router.get('/track/:ticket_id(.*)', trackGrievance);
-
-// --- Department and Category Lookups ---
 router.get('/departments', listDepartments);
+router.get('/locations', listLocations);
 router.get('/categories/:deptId', listCategories);
-
-// --- Office Bearer Specific Routes ---
 router.get('/department/:departmentId', getGrievancesByDepartment);
-
-// --- Worker Management Routes ---
 router.get('/workers/:departmentId', listWorkersByDepartment);
 router.post('/workers', addNewWorker);
-
-// --- Grievance Action Routes ---
-// THE FIX: Changed the parameter from :ticketId(*) to :ticketId(.*)
 router.put('/:ticketId(.*)/assign', assignGrievance);
 router.put('/:ticketId(.*)/resolve', resolveGrievance);
+router.get('/escalated', getEscalatedGrievances);
+router.put('/revert/:ticketId(.*)', revertGrievance);
+router.post('/add-office-bearer', addOfficeBearer);
+
+
+// --- ADMIN ROUTES ---
+router.get('/admin/all', getAllGrievancesForAdmin);
+router.get('/admin/stats', getAdminDashboardStats);
+router.get('/admin/escalated-level2', getLevel2Grievances);
+router.put('/admin/revert-to-level-1/:ticketId(.*)', revertToLevel1);
+router.post('/admin/add-authority', addApprovingAuthority);
+router.post('/admin/add-location', addLocation);
+router.post('/admin/add-department', addDepartment);
+router.post('/admin/add-category', addCategory);
 
 
 export default router;

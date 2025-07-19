@@ -2,8 +2,7 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import PDFDocument from 'pdfkit';
 
-dotenv.config();
-
+// ... (existing code: transporter, sendEmail, and other send... functions)
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -164,4 +163,35 @@ export const sendGrievanceAssignedEmailToWorker = async (workerEmail, workerName
     doc.fontSize(10).text('Signature (if satisfied)', { width: 200, align: 'right' });
 
     doc.end();
+};
+
+
+export const sendEscalationNotification = async (grievance, recipientEmail, level) => {
+    const subject = `Grievance Escalated to Level ${level}: Ticket ${grievance.ticket_id}`;
+    const html = `
+        <p>This is an automated notification.</p>
+        <p>The grievance with Ticket ID <strong>${grievance.ticket_id}</strong> ("${grievance.title}") has breached its resolution deadline and has been escalated to <strong>Level ${level}</strong>.</p>
+        <p>This issue requires immediate attention.</p>
+        <br>
+        <p>Regards,<br/>LNMIIT Grievance System</p>
+    `;
+    await sendEmail(recipientEmail, subject, html);
+};
+
+// NEW: Email for when Admin reverts a grievance
+export const sendRevertNotificationEmail = async (grievance, comment, adminEmail, authorityEmails) => {
+    const subject = `Action Required: Grievance ${grievance.ticket_id} Reverted by Admin`;
+    const html = `
+        <p>To the Approving Authority,</p>
+        <p>The grievance with Ticket ID <strong>${grievance.ticket_id}</strong> has been reverted from Level 2 escalation back to Level 1 by the administrator (${adminEmail}).</p>
+        <p>A new resolution deadline has been set. Please review the case and take appropriate action.</p>
+        <hr>
+        <p><strong>Admin's Comment:</strong></p>
+        <p><em>${comment}</em></p>
+        <hr>
+        <br>
+        <p>Regards,<br/>LNMIIT Grievance System</p>
+    `;
+    // Send to all approving authorities
+    await sendEmail(authorityEmails.join(','), subject, html);
 };

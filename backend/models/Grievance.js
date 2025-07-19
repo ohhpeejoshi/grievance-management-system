@@ -11,6 +11,13 @@ export const getAllDepartments = (callback) => {
   db.query(sql, callback);
 };
 
+// NEW: Fetch all locations
+export const getAllLocations = (callback) => {
+  const sql = `SELECT name FROM locations ORDER BY name`;
+  db.query(sql, callback);
+};
+
+
 // Fetch categories by department (id, name, urgency)
 export const getCategoriesByDept = (deptId, callback) => {
   const sql = `
@@ -35,12 +42,11 @@ export const createGrievance = (data, callback) => {
     attachmentPath,
     mobile_number,
     complainant_name,
-    email
+    email,
+    response_deadline,
+    resolution_deadline,
   } = data;
 
-  // THE FIX: This query now explicitly converts the current UTC time
-  // to the Indian timezone ('+05:30') before inserting it into the database.
-  // This is the most robust method and removes all ambiguity.
   const sql = `
     INSERT INTO grievances
       (ticket_id,
@@ -56,9 +62,11 @@ export const createGrievance = (data, callback) => {
        email,
        status,
        created_at,
-       updated_at)
+       updated_at,
+       response_deadline,
+       resolution_deadline)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', CONVERT_TZ(NOW(), 'UTC', '+05:30'), CONVERT_TZ(NOW(), 'UTC', '+05:30'))
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', CONVERT_TZ(NOW(), 'UTC', '+05:30'), CONVERT_TZ(NOW(), 'UTC', '+05:30'), ?, ?)
   `;
 
   db.query(
@@ -74,7 +82,9 @@ export const createGrievance = (data, callback) => {
       attachmentPath || null,
       mobile_number,
       complainant_name,
-      email
+      email,
+      response_deadline,
+      resolution_deadline,
     ],
     callback
   );
@@ -98,7 +108,8 @@ export const getGrievancesByDepartment = (departmentId, callback) => {
       g.created_at,
       g.updated_at,
       c.name AS category_name,
-      u.roll_number
+      u.roll_number,
+      g.escalation_level
     FROM grievances g
     JOIN categories c ON g.category_id = c.id
     LEFT JOIN users u ON g.email = u.email
@@ -110,7 +121,6 @@ ORDER BY g.created_at DESC
 
 // Update status (and optionally assigned worker) of a ticket
 export const updateGrievanceStatus = (ticketId, status, workerId, callback) => {
-  // THE FIX: This query now also explicitly converts the time to IST for the `updated_at` field.
   const sql = workerId
     ? `UPDATE grievances SET status = ?, assigned_worker_id = ?, updated_at = CONVERT_TZ(NOW(), 'UTC', '+05:30') WHERE ticket_id = ?`
     : `UPDATE grievances SET status = ?, updated_at = CONVERT_TZ(NOW(), 'UTC', '+05:30') WHERE ticket_id = ?`;
