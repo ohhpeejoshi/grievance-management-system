@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut } from 'lucide-react';
+import toast from 'react-hot-toast'; // Added missing import
 
 export default function ApprovingAuthority() {
     const [allGrievances, setAllGrievances] = useState([]);
@@ -22,7 +23,6 @@ export default function ApprovingAuthority() {
     });
 
     useEffect(() => {
-        // The user's local storage key might be different, ensure it is correct
         const email = localStorage.getItem("userEmail");
         if (!email || localStorage.getItem("userRole") !== 'approving-authority') {
             navigate("/login");
@@ -78,7 +78,7 @@ export default function ApprovingAuthority() {
 
     const handleRevert = async (ticketId, newDays) => {
         if (!newDays || newDays <= 0) {
-            alert("Please provide a valid number of days for the new deadline.");
+            toast.error("Please provide a valid number of days.");
             return;
         }
         try {
@@ -89,9 +89,9 @@ export default function ApprovingAuthority() {
             });
             if (!res.ok) throw new Error("Failed to revert grievance.");
             setAllGrievances(allGrievances.filter(g => g.ticket_id !== ticketId));
-            alert("Grievance reverted successfully!");
+            toast.success("Grievance reverted successfully!");
         } catch (err) {
-            alert(err.message);
+            toast.error(err.message);
         }
     };
 
@@ -101,6 +101,7 @@ export default function ApprovingAuthority() {
 
     const handleAddOfficeBearerSubmit = async (e) => {
         e.preventDefault();
+        const toastId = toast.loading("Adding Office Bearer...");
         try {
             const res = await fetch('/api/grievances/add-office-bearer', {
                 method: 'POST',
@@ -109,20 +110,43 @@ export default function ApprovingAuthority() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to add office bearer.");
-            alert("Office bearer added successfully!");
+
+            toast.success("Office bearer added successfully!", { id: toastId });
             setNewOfficeBearer({ name: '', email: '', password: '', mobile_number: '', role: 'Office Bearer', department: '' });
             setAddBearerFormVisible(false);
         } catch (err) {
-            alert(err.message);
+            toast.error(err.message, { id: toastId });
         }
     };
 
+    // Corrected handleLogout function using the modern toast modal
     const handleLogout = () => {
-        localStorage.removeItem("userEmail");
-        localStorage.removeItem("userRole");
-        navigate("/login");
+        toast((t) => (
+            <span className="flex flex-col items-center gap-2">
+                Are you sure you want to logout?
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id); // Dismiss the toast
+                            localStorage.clear(); // Clear session data
+                            navigate("/login"); // Redirect to login
+                        }}
+                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm"
+                    >
+                        Yes
+                    </button>
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="bg-gray-300 text-black px-3 py-1 rounded-md text-sm"
+                    >
+                        No
+                    </button>
+                </div>
+            </span>
+        ), {
+            duration: 6000, // Keep the toast open for a bit longer
+        });
     };
-
 
     if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading dashboard...</div>;
     if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 font-semibold">Error: {error}</div>;
@@ -149,7 +173,7 @@ export default function ApprovingAuthority() {
                         {isAddBearerFormVisible ? <ChevronUp /> : <ChevronDown />}
                     </button>
                     {isAddBearerFormVisible && (
-                        <form onSubmit={handleAddOfficeBearerSubmit} className="space-y-4 bg-white p-6 rounded-lg shadow mt-4 text-left">
+                        <form onSubmit={handleAddOfficeBearerSubmit} className="space-y-4 bg-white p-6 rounded-lg shadow mt-4 text-left animate-enter">
                             <h2 className="text-xl font-semibold text-gray-800 text-center">New Office Bearer Details</h2>
                             <input type="text" name="name" placeholder="Name" value={newOfficeBearer.name} onChange={handleAddOfficeBearerChange} className="w-full p-2 border rounded" required />
                             <input type="email" name="email" placeholder="Email" value={newOfficeBearer.email} onChange={handleAddOfficeBearerChange} className="w-full p-2 border rounded" required />

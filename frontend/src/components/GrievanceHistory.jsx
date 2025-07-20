@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const GrievanceHistory = () => {
     const [history, setHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
     const userEmail = localStorage.getItem('userEmail');
 
     useEffect(() => {
@@ -32,6 +34,37 @@ const GrievanceHistory = () => {
 
         fetchHistory();
     }, [userEmail]);
+
+    const sortedHistory = useMemo(() => {
+        let sortableItems = [...history];
+        if (sortConfig.key !== null) {
+            sortableItems.sort((a, b) => {
+                if (a[sortConfig.key] < b[sortConfig.key]) {
+                    return sortConfig.direction === 'ascending' ? -1 : 1;
+                }
+                if (a[sortConfig.key] > b[sortConfig.key]) {
+                    return sortConfig.direction === 'ascending' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [history, sortConfig]);
+
+    const requestSort = (key) => {
+        let direction = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIcon = (name) => {
+        if (sortConfig.key !== name) {
+            return null;
+        }
+        return sortConfig.direction === 'ascending' ? <ChevronUp size={16} /> : <ChevronDown size={16} />;
+    };
 
     const formatTimestamp = (ts) => {
         if (!ts) return 'N/A';
@@ -64,16 +97,22 @@ const GrievanceHistory = () => {
                         <table className="min-w-full bg-white rounded-xl shadow text-left">
                             <thead className="bg-gray-200 text-gray-700">
                                 <tr>
-                                    <th className="py-3 px-4">Ticket ID</th>
+                                    <th className="py-3 px-4 cursor-pointer" onClick={() => requestSort('ticket_id')}>
+                                        <div className="flex items-center gap-1">Ticket ID {getSortIcon('ticket_id')}</div>
+                                    </th>
                                     <th className="py-3 px-4">Title</th>
                                     <th className="py-3 px-4">Department</th>
-                                    <th className="py-3 px-4">Status</th>
-                                    <th className="py-3 px-4">Submitted On</th>
+                                    <th className="py-3 px-4 cursor-pointer" onClick={() => requestSort('status')}>
+                                        <div className="flex items-center gap-1">Status {getSortIcon('status')}</div>
+                                    </th>
+                                    <th className="py-3 px-4 cursor-pointer" onClick={() => requestSort('created_at')}>
+                                        <div className="flex items-center gap-1">Submitted On {getSortIcon('created_at')}</div>
+                                    </th>
                                     <th className="py-3 px-4">Last Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {history.map((grievance) => (
+                                {sortedHistory.map((grievance) => (
                                     <tr key={grievance.ticket_id} className="border-t hover:bg-gray-50">
                                         <td className="py-3 px-4 font-mono text-sm">{grievance.ticket_id}</td>
                                         <td className="py-3 px-4">{grievance.title}</td>

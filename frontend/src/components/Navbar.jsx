@@ -2,17 +2,39 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import logo from "../assets/Logo_LNMIIT2.png"; // adjust path if needed
+import toast from 'react-hot-toast'; // Make sure toast is imported
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        if (window.confirm("Are you sure you want to logout?")) {
-            // Clear all user session data from storage
-            localStorage.clear();
-            navigate("/login");
-        }
+        // Display a toast notification for logout confirmation
+        toast((t) => (
+            <span className="flex flex-col items-center gap-2">
+                Are you sure you want to logout?
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id); // Dismiss the toast
+                            localStorage.clear(); // Clear session data
+                            navigate("/login"); // Redirect to login
+                        }}
+                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm"
+                    >
+                        Yes
+                    </button>
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="bg-gray-300 text-black px-3 py-1 rounded-md text-sm"
+                    >
+                        No
+                    </button>
+                </div>
+            </span>
+        ), {
+            duration: 6000, // Keep the toast open for a bit longer
+        });
     };
 
     return (

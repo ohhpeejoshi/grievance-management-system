@@ -70,25 +70,50 @@ export const verifyOtp = (req, res) => {
         return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
     }
 
-    otpStore.delete(email); // OTP is used, so delete it.
+    otpStore.delete(email);
 
-    const a = db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
-    const b = db.promise().query('SELECT * FROM office_bearers WHERE email = ?', [email]);
-    const c = db.promise().query('SELECT * FROM approving_authorities WHERE email = ?', [email]);
-    const d = db.promise().query('SELECT * FROM admins WHERE email = ?', [email]);
+    const userQuery = db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+    const bearerQuery = db.promise().query('SELECT * FROM office_bearers WHERE email = ?', [email]);
+    const authorityQuery = db.promise().query('SELECT * FROM approving_authorities WHERE email = ?', [email]);
+    const adminQuery = db.promise().query('SELECT * FROM admins WHERE email = ?', [email]);
 
-    Promise.all([a, b, c, d]).then((results) => {
-        if (results[0][0][0]) {
-            res.status(200).json({ message: 'Login successful', role: 'user' });
-        } else if (results[1][0][0]) {
-            res.status(200).json({ message: 'Login successful', role: 'office-bearer', departmentId: results[1][0][0].department_id });
-        } else if (results[2][0][0]) {
-            res.status(200).json({ message: 'Login successful', role: 'approving-authority' });
-        } else if (results[3][0][0]) {
-            res.status(200).json({ message: 'Login successful', role: 'admin' });
-        } else {
-            res.status(400).json({ error: 'User not found after OTP verification' });
+    Promise.all([userQuery, bearerQuery, authorityQuery, adminQuery]).then(async ([userResults, bearerResults, authorityResults, adminResults]) => {
+        const user = userResults[0][0];
+        const bearer = bearerResults[0][0];
+        const authority = authorityResults[0][0];
+        const admin = adminResults[0][0];
+
+        if (user) {
+            return res.status(200).json({ message: 'Login successful', role: 'user' });
         }
+
+        if (bearer) {
+            try {
+                // Find the department ID from the department name stored for the bearer
+                const [deptRows] = await db.promise().query('SELECT id FROM departments WHERE name = ?', [bearer.department]);
+                if (!deptRows.length) {
+                    return res.status(400).json({ error: 'Office bearer department not found.' });
+                }
+                const departmentId = deptRows[0].id;
+                return res.status(200).json({ message: 'Login successful', role: 'office-bearer', departmentId: departmentId });
+            } catch (dbError) {
+                return res.status(500).json({ error: 'Database error fetching department ID.' });
+            }
+        }
+
+        if (authority) {
+            return res.status(200).json({ message: 'Login successful', role: 'approving-authority' });
+        }
+
+        if (admin) {
+            return res.status(200).json({ message: 'Login successful', role: 'admin' });
+        }
+
+        return res.status(400).json({ error: 'User not found after OTP verification' });
+
+    }).catch(err => {
+        console.error("Verify OTP error:", err);
+        return res.status(500).json({ error: "Server error during user role verification." });
     });
 };
 

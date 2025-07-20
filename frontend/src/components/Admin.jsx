@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut } from 'lucide-react'; // Import LogOut icon
 import toast from 'react-hot-toast';
 
 // Helper for downloading CSV
@@ -59,14 +59,42 @@ export default function Admin() {
     });
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
 
+    // Corrected handleLogout function
     const handleLogout = () => {
-        localStorage.clear();
-        navigate('/login');
+        toast((t) => (
+            <span className="flex flex-col items-center gap-2">
+                Are you sure you want to logout?
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id); // Dismiss the toast
+                            localStorage.clear(); // Clear session data
+                            navigate("/login"); // Redirect to login
+                        }}
+                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm"
+                    >
+                        Yes
+                    </button>
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="bg-gray-300 text-black px-3 py-1 rounded-md text-sm"
+                    >
+                        No
+                    </button>
+                </div>
+            </span>
+        ), {
+            duration: 6000, // Keep the toast open for a bit longer
+        });
     };
 
+
     useEffect(() => {
-        const email = localStorage.getItem("adminEmail");
-        if (!email) navigate("/login");
+        // Corrected the key to 'userEmail' to match the unified login system
+        const email = localStorage.getItem("userEmail");
+        if (!email || localStorage.getItem("userRole") !== 'admin') {
+            navigate("/login");
+        }
 
         Promise.all([
             fetch('/api/grievances/admin/all').then(res => res.json()),
@@ -179,7 +207,7 @@ export default function Admin() {
                 body: JSON.stringify({
                     new_resolution_days: newDays,
                     comment: comment,
-                    adminEmail: localStorage.getItem("adminEmail")
+                    adminEmail: localStorage.getItem("userEmail") // Use correct key here
                 })
             });
             if (!res.ok) throw new Error("Failed to revert grievance.");
