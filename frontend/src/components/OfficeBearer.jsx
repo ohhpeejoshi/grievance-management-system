@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ChevronDown, ChevronUp, Printer, X, UserPlus, FileSignature } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Printer, X, UserPlus, FileSignature, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// This updated Modal component provides the semi-transparent, blurred WHITE backdrop
+// This updated Modal component provides the semi-transparent, blurred backdrop
 const Modal = ({ isOpen, onClose, title, icon, children }) => {
     if (!isOpen) return null;
     return (
@@ -27,6 +27,7 @@ const Modal = ({ isOpen, onClose, title, icon, children }) => {
     );
 };
 
+
 export default function OfficeBearer() {
     const [grievances, setGrievances] = useState([]);
     const [workers, setWorkers] = useState([]);
@@ -36,6 +37,7 @@ export default function OfficeBearer() {
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
     const [isAssignModalOpen, setAssignModalOpen] = useState(false);
     const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
+    const [isInfoModalOpen, setInfoModalOpen] = useState(false); // New state for info modal
     const [selectedGrievance, setSelectedGrievance] = useState(null);
     const [selectedWorker, setSelectedWorker] = useState('');
     const [newWorker, setNewWorker] = useState({ name: '', email: '', phone_number: '' });
@@ -143,8 +145,11 @@ export default function OfficeBearer() {
                 }),
             });
             if (!res.ok) throw new Error("Failed to assign grievance.");
-            const updatedGrievances = grievances.map(g => g.ticket_id === selectedGrievance.ticket_id ? { ...g, status: 'In Progress' } : g);
-            setGrievances(updatedGrievances);
+
+            // To update the UI instantly with the worker's name, we refetch the data
+            const refreshedGrievances = await fetch(`/api/grievances/department/${departmentId}`).then(res => res.json());
+            setGrievances(refreshedGrievances);
+
             setAssignModalOpen(false);
             toast.success("Grievance assigned successfully!", { id: toastId });
         } catch (err) {
@@ -177,8 +182,9 @@ export default function OfficeBearer() {
             const encodedTicketId = encodeURIComponent(ticketId);
             const res = await fetch(`/api/grievances/${encodedTicketId}/resolve`, { method: 'PUT' });
             if (!res.ok) throw new Error("Failed to resolve grievance.");
-            const updatedGrievances = grievances.map(g => g.ticket_id === ticketId ? { ...g, status: 'Resolved' } : g);
-            setGrievances(updatedGrievances);
+            // Refetch data to ensure UI consistency
+            const refreshedGrievances = await fetch(`/api/grievances/department/${departmentId}`).then(res => res.json());
+            setGrievances(refreshedGrievances);
             toast.success("Grievance resolved successfully!", { id: toastId });
         } catch (err) {
             toast.error(err.message, { id: toastId });
@@ -209,6 +215,11 @@ export default function OfficeBearer() {
         setSelectedGrievance(grievance);
         setSelectedWorker('');
         setAssignModalOpen(true);
+    };
+
+    const openInfoModal = (grievance) => {
+        setSelectedGrievance(grievance);
+        setInfoModalOpen(true);
     };
 
     const handlePrint = (grievance) => {
@@ -279,7 +290,15 @@ export default function OfficeBearer() {
                                             ) : (
                                                 <>
                                                     {g.status === 'Submitted' && (<button onClick={() => openAssignModal(g)} className="bg-blue-500 text-white px-3 py-1 rounded shadow hover:bg-blue-600 transition">Assign</button>)}
-                                                    {g.status === 'In Progress' && (<button onClick={() => handleResolveGrievance(g.ticket_id)} className="bg-green-500 text-white px-3 py-1 rounded shadow hover:bg-green-600 transition">Resolve</button>)}
+                                                    {g.status === 'In Progress' && (
+                                                        <>
+                                                            <button onClick={() => handleResolveGrievance(g.ticket_id)} className="bg-green-500 text-white px-3 py-1 rounded shadow hover:bg-green-600 transition">Resolve</button>
+                                                            <button onClick={() => openInfoModal(g)} className="bg-gray-400 text-white p-2 rounded-full shadow hover:bg-gray-500 transition"><Info size={14} /></button>
+                                                        </>
+                                                    )}
+                                                    {g.status === 'Resolved' && (
+                                                        <button onClick={() => openInfoModal(g)} className="bg-gray-400 text-white p-2 rounded-full shadow hover:bg-gray-500 transition"><Info size={14} /></button>
+                                                    )}
                                                 </>
                                             )}
                                             <button onClick={() => handlePrint(g)} className="bg-gray-500 text-white p-2 rounded shadow hover:bg-gray-600 transition"><Printer size={16} /></button>
@@ -319,6 +338,27 @@ export default function OfficeBearer() {
                     <input type="tel" placeholder="Worker Phone Number" value={newWorker.phone_number} onChange={e => setNewWorker({ ...newWorker, phone_number: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" required />
                     <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold transition">Add Worker</button>
                 </form>
+            </Modal>
+            <Modal
+                isOpen={isInfoModalOpen}
+                onClose={() => setInfoModalOpen(false)}
+                title="Assignment Information"
+                icon={<Info size={24} className="text-blue-600" />}
+            >
+                {selectedGrievance && (
+                    <div className="space-y-3 text-gray-700">
+                        <p><strong>Ticket ID:</strong> {selectedGrievance.ticket_id}</p>
+                        <p><strong>Assigned To:</strong> {selectedGrievance.worker_name || 'N/A'}</p>
+                        <p><strong>Worker Contact:</strong> {selectedGrievance.worker_phone_number || 'N/A'}</p>
+                        <p>
+                            <strong>Last Update:</strong>
+                            {new Date(selectedGrievance.updated_at).toLocaleString('en-IN', {
+                                year: 'numeric', month: 'long', day: 'numeric',
+                                hour: 'numeric', minute: 'numeric', hour12: true
+                            })}
+                        </p>
+                    </div>
+                )}
             </Modal>
         </>
     );

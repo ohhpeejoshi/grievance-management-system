@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
   useLocation,
+  useNavigate
 } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast";
 
 import Loader from "./components/Loader";
 import Navbar from "./components/Navbar";
@@ -22,10 +23,42 @@ import Register from "./components/Register";
 import Login from "./components/Login";
 import ForgotPassword from "./components/ForgotPassword";
 import ProtectedRoute from "./components/ProtectedRoute";
-import GrievanceHistory from "./components/GrievanceHistory"; // Import the new component
+import GrievanceHistory from "./components/GrievanceHistory";
+
+// Inactivity Logout Hook
+const useInactivityTimeout = (timeout = 180000) => { // 3 minutes
+  const navigate = useNavigate();
+
+  const logout = useCallback(() => {
+    localStorage.clear();
+    navigate("/login");
+    toast.error("You have been logged out due to inactivity.", { duration: 5000 });
+  }, [navigate]);
+
+  useEffect(() => {
+    let timer;
+
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(logout, timeout);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    resetTimer(); // Initialize timer
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [logout, timeout]);
+};
+
 
 function AppContent() {
   const location = useLocation();
+  useInactivityTimeout(); // Apply the inactivity hook globally
+
   const hideNavbar = [
     "/login",
     "/register",
@@ -129,7 +162,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 3000);
+    const timer = setTimeout(() => setLoading(false), 1500); // Reduced loader time
     return () => clearTimeout(timer);
   }, []);
 

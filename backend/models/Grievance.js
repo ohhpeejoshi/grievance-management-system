@@ -130,16 +130,18 @@ export const getGrievancesByDepartment = (departmentId, callback) => {
       g.updated_at,
       c.name AS category_name,
       u.roll_number,
-      g.escalation_level
+      g.escalation_level,
+      w.name AS worker_name,
+      w.phone_number AS worker_phone_number 
     FROM grievances g
     JOIN categories c ON g.category_id = c.id
     LEFT JOIN users u ON g.email = u.email
+    LEFT JOIN workers w ON g.assigned_worker_id = w.id
    WHERE g.department_id = ?
 ORDER BY g.created_at DESC
   `;
   db.query(sql, [departmentId], callback);
 };
-
 // Update status (and optionally assigned worker) of a ticket
 export const updateGrievanceStatus = (ticketId, status, workerId, callback) => {
   const sql = workerId
