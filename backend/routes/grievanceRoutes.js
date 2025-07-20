@@ -23,7 +23,8 @@ import {
     addLocation,
     addDepartment,
     addCategory,
-    getUserGrievanceHistory
+    getUserGrievanceHistory,
+    transferGrievance
 } from '../controllers/grievanceController.js';
 
 const router = express.Router();
@@ -48,7 +49,7 @@ router.put('/:ticketId(.*)/resolve', resolveGrievance);
 router.get('/escalated', getEscalatedGrievances);
 router.put('/revert/:ticketId(.*)', revertGrievance);
 router.post('/add-office-bearer', addOfficeBearer);
-
+router.put('/transfer', transferGrievance);
 
 // --- ADMIN ROUTES ---
 router.get('/admin/all', getAllGrievancesForAdmin);

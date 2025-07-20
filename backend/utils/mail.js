@@ -170,7 +170,7 @@ export const sendEscalationNotification = async (grievance, recipientEmail, leve
     const subject = `Grievance Escalated to Level ${level}: Ticket ${grievance.ticket_id}`;
     const html = `
         <p>This is an automated notification.</p>
-        <p>The grievance with Ticket ID <strong>${grievance.ticket_id}</strong> ("${grievance.title}") has breached its resolution deadline and has been escalated to <strong>Level ${level}</strong>.</p>
+        <p>The grievance with Ticket ID <strong>${grievance.ticket_id}</strong> ("${grievance.title}") has breached its deadline and has been escalated to <strong>Level ${level}</strong>.</p>
         <p>This issue requires immediate attention.</p>
         <br>
         <p>Regards,<br/>LNMIIT Grievance System</p>
@@ -178,7 +178,6 @@ export const sendEscalationNotification = async (grievance, recipientEmail, leve
     await sendEmail(recipientEmail, subject, html);
 };
 
-// NEW: Email for when Admin reverts a grievance
 export const sendRevertNotificationEmail = async (grievance, comment, adminEmail, authorityEmails) => {
     const subject = `Action Required: Grievance ${grievance.ticket_id} Reverted by Admin`;
     const html = `
@@ -192,6 +191,43 @@ export const sendRevertNotificationEmail = async (grievance, comment, adminEmail
         <br>
         <p>Regards,<br/>LNMIIT Grievance System</p>
     `;
-    // Send to all approving authorities
     await sendEmail(authorityEmails.join(','), subject, html);
+};
+
+// --- NEW FUNCTION ---
+export const sendRevertToOfficeBearerEmail = async (grievance, comment, authorityEmail, bearerEmails) => {
+    const subject = `Action Required: Grievance ${grievance.ticket_id} Reverted by Approving Authority`;
+    const html = `
+        <p>To the Office Bearers of the ${grievance.department_name} department,</p>
+        <p>The escalated grievance with Ticket ID <strong>${grievance.ticket_id}</strong> has been reviewed and reverted by the Approving Authority (${authorityEmail}).</p>
+        <p>A new resolution deadline has been set. Please ensure the issue is addressed promptly.</p>
+        <hr>
+        <p><strong>Approving Authority's Comment:</strong></p>
+        <p><em>${comment}</em></p>
+        <hr>
+        <br>
+        <p>Regards,<br/>LNMIIT Grievance System</p>
+    `;
+    await sendEmail(bearerEmails.join(','), subject, html);
+};
+
+export const sendGrievanceTransferNotification = async (grievance, newDepartmentName, bearerEmails) => {
+    const subject = `[Transferred] New Grievance Assigned to Your Department: ${grievance.ticket_id}`;
+    const html = `
+        <p>To the Office Bearers of the ${newDepartmentName} department,</p>
+        <p>The following grievance has been transferred to your department for resolution:</p>
+        <hr>
+        <ul>
+            <li><strong>Ticket ID:</strong> ${grievance.ticket_id}</li>
+            <li><strong>Title:</strong> ${grievance.title}</li>
+            <li><strong>Description:</strong> ${grievance.description}</li>
+            <li><strong>Location:</strong> ${grievance.location}</li>
+            <li><strong>Urgency:</strong> ${grievance.urgency}</li>
+        </ul>
+        <hr>
+        <p>Please review and assign it to a worker at your earliest convenience.</p>
+        <br>
+        <p>Regards,<br/>LNMIIT Grievance System</p>
+    `;
+    await sendEmail(bearerEmails.join(','), subject, html);
 };
