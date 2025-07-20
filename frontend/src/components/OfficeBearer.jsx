@@ -13,6 +13,12 @@ export default function OfficeBearer() {
     const [error, setError] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
+    const [filters, setFilters] = useState({
+        status: '',
+        urgency: '',
+        startDate: '',
+        endDate: ''
+    });
 
     // State for Transfer Modal
     const [isTransferModalOpen, setTransferModalOpen] = useState(false);
@@ -83,9 +89,18 @@ export default function OfficeBearer() {
 
     const sortedAndFilteredGrievances = useMemo(() => {
         let sortableItems = [...grievances];
-        if (searchTerm) {
-            sortableItems = sortableItems.filter(g => g.ticket_id.toLowerCase().includes(searchTerm.toLowerCase()));
-        }
+        sortableItems = sortableItems.filter(g => {
+            const grievanceDate = new Date(g.created_at);
+            const startDate = filters.startDate ? new Date(filters.startDate) : null;
+            const endDate = filters.endDate ? new Date(filters.endDate) : null;
+
+            if (startDate && grievanceDate < startDate) return false;
+            if (endDate && grievanceDate > endDate) return false;
+            if (filters.status && g.status !== filters.status) return false;
+            if (filters.urgency && g.urgency !== filters.urgency) return false;
+            if (searchTerm && !g.ticket_id.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+            return true;
+        });
         if (sortConfig.key !== null) {
             sortableItems.sort((a, b) => {
                 if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'ascending' ? -1 : 1;
@@ -94,7 +109,11 @@ export default function OfficeBearer() {
             });
         }
         return sortableItems;
-    }, [grievances, searchTerm, sortConfig]);
+    }, [grievances, searchTerm, sortConfig, filters]);
+
+    const handleFilterChange = (e) => {
+        setFilters({ ...filters, [e.target.name]: e.target.value });
+    };
 
     const requestSort = (key) => {
         let direction = 'ascending';
@@ -270,9 +289,28 @@ export default function OfficeBearer() {
                             <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600 transition">Logout</button>
                         </div>
                     </div>
-                    <div className="mb-6 relative">
-                        <input type="text" placeholder="Search by Ticket ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3 pl-10 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                        <input
+                            type="text"
+                            placeholder="Search by Ticket ID..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="p-2 border rounded-lg col-span-1"
+                        />
+                        <select name="status" value={filters.status} onChange={handleFilterChange} className="p-2 border rounded-lg">
+                            <option value="">All Statuses</option>
+                            <option value="Submitted">Submitted</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+                        <select name="urgency" value={filters.urgency} onChange={handleFilterChange} className="p-2 border rounded-lg">
+                            <option value="">All Urgencies</option>
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Emergency">Emergency</option>
+                        </select>
+                        <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="p-2 border rounded-lg" />
+                        <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="p-2 border rounded-lg" />
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full bg-white rounded-xl shadow text-left">
