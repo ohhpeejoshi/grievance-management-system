@@ -274,7 +274,24 @@ export default function OfficeBearer() {
 
     const handlePrint = (grievance) => {
         const printWindow = window.open('', '_blank');
-        printWindow.document.write(`...`); // Print content
+        printWindow.document.write(`
+            <html>
+                <head><title>Grievance Details - ${grievance.ticket_id}</title><style>body{font-family:sans-serif;padding:20px}h1,h2{color:#333;border-bottom:2px solid #eee;padding-bottom:5px}p{line-height:1.6}strong{color:#555}.grievance-details{margin-top:20px}.attachment-link{display:block;margin-top:15px}.signature-box{float:right;text-align:center;width:250px;margin-top:80px;border-top:1px solid #000;padding-top:5px}</style></head>
+                <body>
+                    <h1>Grievance Report</h1><h2>Ticket ID: ${grievance.ticket_id}</h2>
+                    <div class="grievance-details">
+                        <p><strong>Title:</strong> ${grievance.title}</p><p><strong>Status:</strong> ${grievance.status}</p><p><strong>Urgency:</strong> ${grievance.urgency}</p>
+                        <p><strong>Submitted On:</strong> ${new Date(grievance.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+                        <p><strong>Category:</strong> ${grievance.category_name}</p><p><strong>Location:</strong> ${grievance.location}</p><hr>
+                        <p><strong>Complainant:</strong> ${grievance.complainant_name}</p>
+                        <p><strong>Roll Number:</strong> ${grievance.roll_number || 'N/A'}</p>
+                        <p><strong>Email:</strong> ${grievance.email}</p><p><strong>Mobile:</strong> ${grievance.mobile_number}</p><hr>
+                        <h3>Description</h3><p>${grievance.description}</p>
+                        ${grievance.attachment ? `<a href="${grievance.attachment}" target="_blank" class="attachment-link">View Attachment</a>` : '<p>No attachment provided.</p>'}
+                        <div class="signature-box">Signature (if satisfied)</div>
+                    </div>
+                </body>
+            </html>`);
         printWindow.document.close();
         printWindow.print();
     };
