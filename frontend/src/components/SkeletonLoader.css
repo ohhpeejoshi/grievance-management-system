@@ -1,0 +1,19 @@
+.skeleton-wrapper {
+    padding: 20px;
+    background-color: #f0f0f0;
+    border-radius: 8px;
+}
+
+.skeleton-header {
+    height: 40px;
+    background-color: #e0e0e0;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.skeleton-line {
+    height: 20px;
+    background-color: #e0e0e0;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}

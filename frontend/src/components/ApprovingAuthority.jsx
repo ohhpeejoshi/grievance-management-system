@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronUp, LogOut } from 'lucide-react';
-import toast from 'react-hot-toast'; // Added missing import
+import toast from 'react-hot-toast';
+import SkeletonLoader from './SkeletonLoader';
 
 export default function ApprovingAuthority() {
     const [allGrievances, setAllGrievances] = useState([]);
@@ -148,7 +149,13 @@ export default function ApprovingAuthority() {
         });
     };
 
-    if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading dashboard...</div>;
+    if (isLoading) return (
+        <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
+            <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8">
+                <SkeletonLoader />
+            </div>
+        </div>
+    )
     if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 font-semibold">Error: {error}</div>;
 
     return (

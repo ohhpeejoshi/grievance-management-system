@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Import useRef
 import toast from 'react-hot-toast';
+import SkeletonLoader from './SkeletonLoader';
 
 export default function SubmitGrievance() {
     const [locationsList, setLocationsList] = useState([]);
@@ -22,6 +23,7 @@ export default function SubmitGrievance() {
     });
     const [previewUrl, setPreviewUrl] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const fileInputRef = useRef(null); // Create a ref for the file input
 
     useEffect(() => {
         const emailFromAuth = localStorage.getItem("userEmail");
@@ -102,12 +104,19 @@ export default function SubmitGrievance() {
 
     const handleFileChange = e => {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) {
+            setPreviewUrl(null);
+            setFormData(p => ({ ...p, attachment: null }));
+            return;
+        }
 
         if (file.size > 2 * 1024 * 1024) {
             toast.error("File too large. Max size is 2MB.");
             setFormData(p => ({ ...p, attachment: null }));
             setPreviewUrl(null);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
             return;
         }
 
@@ -163,6 +172,11 @@ export default function SubmitGrievance() {
             });
             setCategoriesList([]);
             setPreviewUrl(null);
+            // --- THE FIX ---
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ""; // Reset the file input
+            }
+            // ---------------
         } catch (err) {
             console.error(err);
             toast.error(err.message, { id: toastId });
@@ -173,8 +187,10 @@ export default function SubmitGrievance() {
 
     if (profileLoading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <p className="text-lg">Loading your profile…</p>
+            <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 flex justify-center px-4 py-10">
+                <div className="max-w-4xl w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8">
+                    <SkeletonLoader />
+                </div>
             </div>
         );
     }
@@ -327,6 +343,7 @@ export default function SubmitGrievance() {
                         <input
                             type="file"
                             name="attachment"
+                            ref={fileInputRef} // Attach the ref to the input
                             className="w-full p-3 border border-gray-300 rounded-lg"
                             onChange={handleFileChange}
                         />

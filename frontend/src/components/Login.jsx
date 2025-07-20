@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
@@ -14,8 +14,12 @@ export default function Login() {
     const [countdown, setCountdown] = useState(0);
     const [isResendDisabled, setIsResendDisabled] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
+        if (location.state?.fromInactivity) {
+            return;
+        }
         // This effect runs when the Login page loads.
         // If a user navigates back to this page while logged in,
         // this will clear their session, forcing a fresh login.
@@ -23,7 +27,7 @@ export default function Login() {
             localStorage.clear();
             toast('You have been logged out.', { icon: 'info' });
         }
-    }, []);
+    }, [location]);
 
 
     useEffect(() => {

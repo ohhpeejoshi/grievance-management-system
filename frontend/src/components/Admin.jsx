@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChevronDown, ChevronUp, LogOut } from 'lucide-react'; // Import LogOut icon
 import toast from 'react-hot-toast';
+import SkeletonLoader from './SkeletonLoader';
 
 // Helper for downloading CSV
 const downloadCSV = (data, filename = 'report.csv') => {
@@ -220,7 +221,13 @@ export default function Admin() {
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
 
-    if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading Admin Dashboard...</div>;
+    if (isLoading) return (
+        <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
+            <div className="max-w-7xl mx-auto">
+                <SkeletonLoader />
+            </div>
+        </div>
+    )
     if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 font-semibold">Error: {error}</div>;
 
     return (

@@ -6,68 +6,90 @@ import { getOfficeBearerByEmail } from '../models/OfficeBearer.js';
 import { getApprovingAuthorityByEmail } from '../models/ApprovingAuthority.js';
 import { sendRegistrationEmail } from '../utils/mail.js';
 import { getAdminByEmail } from '../models/Admin.js';
+import ErrorResponse from '../utils/errorResponse.js';
 const otpStore = new Map();
 
-export const registerUser = (req, res) => {
+export const registerUser = async (req, res, next) => {
     const { roll_number, name, email, password, mobile_number } = req.body;
     if (!email.endsWith('@lnmiit.ac.in') && email !== 'grievanceportallnmiit@gmail.com') {
-        return res.status(400).json({ error: 'Only LNMIIT emails are allowed.' });
+        return next(new ErrorResponse('Only LNMIIT emails are allowed.', 400));
     }
 
-    bcrypt.hash(password, 6, (err, hashedPassword) => {
-        if (err) return res.status(500).json({ error: 'Password encryption failed.' });
-        createUser({ roll_number, name, email, hashedPassword, mobile_number }, async (err2) => {
-            if (err2) return res.status(500).json({ error: 'Database error.' });
+    try {
+        // --- THE FIX: Check if email already exists in any user table ---
+        const queries = [
+            db.promise().query('SELECT email FROM users WHERE email = ?', [email]),
+            db.promise().query('SELECT email FROM office_bearers WHERE email = ?', [email]),
+            db.promise().query('SELECT email FROM approving_authorities WHERE email = ?', [email]),
+            db.promise().query('SELECT email FROM admins WHERE email = ?', [email])
+        ];
+
+        const results = await Promise.all(queries);
+        const emailExists = results.some(result => result[0].length > 0);
+
+        if (emailExists) {
+            return next(new ErrorResponse('Email is already registered.', 400));
+        }
+        // --------------------------------------------------------------------
+
+        const hashedPassword = await bcrypt.hash(password, 6);
+        createUser({ roll_number, name, email, hashedPassword, mobile_number }, async (err) => {
+            if (err) {
+                // This will now only catch other unexpected database errors
+                return next(new ErrorResponse('Database error during user creation.', 500));
+            }
 
             sendRegistrationEmail(email, name)
                 .catch(console.error);
 
             res.status(201).json({ message: 'User registered successfully.' });
         });
-    });
+    } catch (error) {
+        next(error)
+    }
 };
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
     const { email, password } = req.body;
 
-    const a = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
-    const b = await db.promise().query('SELECT * FROM office_bearers WHERE email = ?', [email]);
-    const c = await db.promise().query('SELECT * FROM approving_authorities WHERE email = ?', [email]);
-    const d = await db.promise().query('SELECT * FROM admins WHERE email = ?', [email]);
-
-    const user = a[0][0] || b[0][0] || c[0][0] || d[0][0];
-
-    if (!user) {
-        return res.status(400).json({ error: 'Email not registered' });
-    }
-
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(400).json({ error: 'Incorrect password' });
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(user.email, { otp: otp, createdAt: Date.now() });
-    console.log(`OTP for login (${user.email}):`, otp);
-
     try {
+        const a = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+        const b = await db.promise().query('SELECT * FROM office_bearers WHERE email = ?', [email]);
+        const c = await db.promise().query('SELECT * FROM approving_authorities WHERE email = ?', [email]);
+        const d = await db.promise().query('SELECT * FROM admins WHERE email = ?', [email]);
+
+        const user = a[0][0] || b[0][0] || c[0][0] || d[0][0];
+
+        if (!user) {
+            return next(new ErrorResponse('Email not registered', 400));
+        }
+
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) return next(new ErrorResponse('Incorrect password', 400));
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        otpStore.set(user.email, { otp: otp, createdAt: Date.now() });
+        console.log(`OTP for login (${user.email}):`, otp);
+
         await sendOtpEmail(user.email, otp);
         res.status(200).json({ message: 'OTP sent to email', email: user.email });
-    } catch {
-        res.status(500).json({ error: 'Failed to send OTP email' });
+    } catch (error) {
+        next(error);
     }
 };
 
-export const verifyOtp = (req, res) => {
+export const verifyOtp = (req, res, next) => {
     const { email, otp } = req.body;
     const storedData = otpStore.get(email);
 
     if (!storedData || storedData.otp !== otp) {
-        return res.status(400).json({ error: 'Incorrect OTP' });
+        return next(new ErrorResponse('Incorrect OTP', 400));
     }
 
     const isExpired = (Date.now() - storedData.createdAt) > 60000; // 60 seconds
     if (isExpired) {
         otpStore.delete(email);
-        return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+        return next(new ErrorResponse('OTP has expired. Please request a new one.', 400));
     }
 
     otpStore.delete(email);
@@ -89,15 +111,14 @@ export const verifyOtp = (req, res) => {
 
         if (bearer) {
             try {
-                // Find the department ID from the department name stored for the bearer
                 const [deptRows] = await db.promise().query('SELECT id FROM departments WHERE name = ?', [bearer.department]);
                 if (!deptRows.length) {
-                    return res.status(400).json({ error: 'Office bearer department not found.' });
+                    return next(new ErrorResponse('Office bearer department not found.', 400));
                 }
                 const departmentId = deptRows[0].id;
                 return res.status(200).json({ message: 'Login successful', role: 'office-bearer', departmentId: departmentId });
             } catch (dbError) {
-                return res.status(500).json({ error: 'Database error fetching department ID.' });
+                return next(new ErrorResponse('Database error fetching department ID.', 500));
             }
         }
 
@@ -109,17 +130,17 @@ export const verifyOtp = (req, res) => {
             return res.status(200).json({ message: 'Login successful', role: 'admin' });
         }
 
-        return res.status(400).json({ error: 'User not found after OTP verification' });
+        return next(new ErrorResponse('User not found after OTP verification', 400));
 
     }).catch(err => {
         console.error("Verify OTP error:", err);
-        return res.status(500).json({ error: "Server error during user role verification." });
+        return next(new ErrorResponse("Server error during user role verification.", 500));
     });
 };
 
 
-export const forgotPassword = async (req, res) => {
-    const { identifier } = req.body; // Identifier is the email
+export const forgotPassword = async (req, res, next) => {
+    const { identifier } = req.body;
 
     const queries = [
         db.promise().query('SELECT email FROM users WHERE email = ?', [identifier]),
@@ -133,7 +154,7 @@ export const forgotPassword = async (req, res) => {
         const foundUser = results.map(r => r[0][0]).find(user => user);
 
         if (!foundUser) {
-            return res.status(404).json({ error: 'Email not found in any user role.' });
+            return next(new ErrorResponse('Email not found in any user role.', 404));
         }
 
         const email = foundUser.email;
@@ -146,25 +167,24 @@ export const forgotPassword = async (req, res) => {
         res.status(200).json({ message: 'OTP has been sent to your registered email.' });
 
     } catch (err) {
-        console.error("Forgot Password Error:", err);
-        res.status(500).json({ error: 'Database error or failed to send OTP.' });
+        next(err);
     }
 };
 
-export const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res, next) => {
     const { identifier, otp, newPassword } = req.body;
     const email = identifier;
 
     const storedData = otpStore.get(email);
 
     if (!storedData || storedData.otp !== otp || storedData.purpose !== 'reset') {
-        return res.status(400).json({ error: 'Invalid OTP or request.' });
+        return next(new ErrorResponse('Invalid OTP or request.', 400));
     }
 
-    const isExpired = (Date.now() - storedData.createdAt) > 60000; // 60 seconds
+    const isExpired = (Date.now() - storedData.createdAt) > 60000;
     if (isExpired) {
         otpStore.delete(email);
-        return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+        return next(new ErrorResponse('OTP has expired. Please request a new one.', 400));
     }
 
     try {
@@ -186,27 +206,25 @@ export const resetPassword = async (req, res) => {
             otpStore.delete(email);
             res.status(200).json({ message: 'Password has been reset successfully.' });
         } else {
-            res.status(404).json({ error: 'User not found during password update.' });
+            next(new ErrorResponse('User not found during password update.', 404));
         }
     } catch (err) {
-        console.error("Reset Password Error:", err);
-        res.status(500).json({ error: 'Failed to reset password due to a server error.' });
+        next(err);
     }
 };
 
 
-export const getUserProfile = (req, res) => {
+export const getUserProfile = (req, res, next) => {
     const email = req.query.email;
     if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
+        return next(new ErrorResponse('Email is required', 400));
     }
     getUserByEmail(email, (err, results) => {
         if (err) {
-            console.error('DB error fetching user profile:', err);
-            return res.status(500).json({ error: 'Database error' });
+            return next(new ErrorResponse('Database error', 500));
         }
         if (!results.length) {
-            return res.status(404).json({ error: 'User not found' });
+            return next(new ErrorResponse('User not found', 404));
         }
         const { name, email: userEmail, mobile_number } = results[0];
         res.json({ name, email: userEmail, mobileNumber: mobile_number });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import SkeletonLoader from './SkeletonLoader'; // Import the new skeleton loader
 
 const GrievanceHistory = () => {
     const [history, setHistory] = useState([]);
@@ -79,7 +80,14 @@ const GrievanceHistory = () => {
     };
 
     if (isLoading) {
-        return <div className="text-center p-10">Loading grievance history...</div>;
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
+                <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8">
+                    <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Your Grievance History</h1>
+                    <SkeletonLoader />
+                </div>
+            </div>
+        );
     }
 
     if (error) {

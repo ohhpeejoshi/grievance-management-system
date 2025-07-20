@@ -26,12 +26,12 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import GrievanceHistory from "./components/GrievanceHistory";
 
 // Inactivity Logout Hook
-const useInactivityTimeout = (timeout = 180000) => { // 3 minutes
+const useInactivityTimeout = (timeout = 18000000) => { // 3 minutes
   const navigate = useNavigate();
 
   const logout = useCallback(() => {
     localStorage.clear();
-    navigate("/login");
+    navigate("/login", { state: { fromInactivity: true } });
     toast.error("You have been logged out due to inactivity.", { duration: 5000 });
   }, [navigate]);
 

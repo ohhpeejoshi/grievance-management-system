@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, ChevronDown, ChevronUp, Printer, X, UserPlus, FileSignature, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SkeletonLoader from './SkeletonLoader';
 
 // This updated Modal component provides the semi-transparent, blurred backdrop
 const Modal = ({ isOpen, onClose, title, icon, children }) => {
@@ -9,7 +10,7 @@ const Modal = ({ isOpen, onClose, title, icon, children }) => {
     return (
         <div
             className="fixed inset-0 bg-red-blue bg-opacity-25 backdrop-blur-sm flex justify-center items-center"
-            style={{ zIndex: 1000 }} // Ensure modal is on top
+            style={{ zIndex: 1000 }}
         >
             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 border border-gray-200 animate-enter">
                 <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-3">
@@ -246,7 +247,13 @@ export default function OfficeBearer() {
         printWindow.print();
     };
 
-    if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading dashboard...</div>;
+    if (isLoading) return (
+        <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
+            <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8">
+                <SkeletonLoader />
+            </div>
+        </div>
+    )
     if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 font-semibold">Error: {error}</div>;
 
     return (

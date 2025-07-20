@@ -18,6 +18,7 @@ import {
 import imagekit from '../config/imagekit.js';
 import { db } from '../config/db.js';
 import bcrypt from 'bcrypt';
+import ErrorResponse from '../utils/errorResponse.js';
 
 const calculateDeadline = (hours) => {
     let deadline = new Date();
@@ -31,52 +32,53 @@ const calculateDeadline = (hours) => {
     return deadline;
 };
 
-// NEW: Controller to handle fetching user's grievance history
-export const getUserGrievanceHistory = (req, res) => {
+export const getUserGrievanceHistory = (req, res, next) => {
     const { email } = req.params;
     getGrievancesByEmail(email, (err, results) => {
         if (err) {
-            console.error("DB error fetching grievance history:", err);
-            return res.status(500).json({ error: 'DB error fetching grievance history' });
+            return next(new ErrorResponse('DB error fetching grievance history', 500));
         }
         res.json(results);
     });
 };
 
 
-export const listDepartments = (req, res) => {
+export const listDepartments = (req, res, next) => {
     getAllDepartments((err, results) => {
-        if (err) return res.status(500).json({ error: 'DB error fetching departments' });
+        if (err) return next(new ErrorResponse('DB error fetching departments', 500));
         res.json(results);
     });
 };
 
-export const listLocations = (req, res) => {
+export const listLocations = (req, res, next) => {
     getAllLocations((err, results) => {
-        if (err) return res.status(500).json({ error: 'DB error fetching locations' });
+        if (err) return next(new ErrorResponse('DB error fetching locations', 500));
         res.json(results.map(loc => loc.name));
     });
 };
 
-// ... (existing functions: listCategories, submitGrievance, etc.)
-export const listCategories = (req, res) => {
+export const listCategories = (req, res, next) => {
     const deptId = req.params.deptId;
     getCategoriesByDept(deptId, (err, results) => {
-        if (err) return res.status(500).json({ error: 'DB error fetching categories' });
+        if (err) return next(new ErrorResponse('DB error fetching categories', 500));
         res.json(results);
     });
 };
 
-export const submitGrievance = async (req, res) => {
+export const submitGrievance = async (req, res, next) => {
     try {
         let imageUrl = null;
         if (req.file && req.file.buffer) {
             const uploadResponse = await imagekit.upload({
                 file: req.file.buffer,
                 fileName: `grievance_${Date.now()}_${req.file.originalname}`,
-                folder: "/grievances",
+                folder: "/", // Corrected path to prevent URL issues
+                isPrivateFile: false
             });
+
+            console.log("ImageKit Upload Response:", uploadResponse);
             imageUrl = uploadResponse.url;
+            console.log("URL being saved to database:", imageUrl);
         }
 
         const { title, description, location, department, category, urgency = 'Normal', mobileNumber, complainantName, email } = req.body;
@@ -99,12 +101,12 @@ export const submitGrievance = async (req, res) => {
                 resolution_deadline = calculateDeadline(24);
                 break;
             case 'High':
-                response_deadline = calculateDeadline(36); // 1.5 days
-                resolution_deadline = calculateDeadline(72); // 3 days
+                response_deadline = calculateDeadline(36);
+                resolution_deadline = calculateDeadline(72);
                 break;
             default: // Normal
-                response_deadline = calculateDeadline(60); // 2.5 days
-                resolution_deadline = calculateDeadline(120); // 5 days
+                response_deadline = calculateDeadline(60);
+                resolution_deadline = calculateDeadline(120);
                 break;
         }
 
@@ -123,16 +125,16 @@ export const submitGrievance = async (req, res) => {
             response_deadline,
             resolution_deadline
         }, (err) => {
-            if (err) return res.status(500).json({ error: 'DB error inserting grievance' });
+            if (err) return next(new ErrorResponse('DB error inserting grievance', 500));
             res.status(201).json({ message: 'Grievance submitted successfully', ticket_id });
         });
     } catch (err) {
-        console.error('Grievance submission failed:', err);
-        res.status(500).json({ error: 'Grievance submission failed' });
+        console.error("--- IMAGEKIT UPLOAD FAILED ---", err);
+        next(err)
     }
 };
 
-export const trackGrievance = async (req, res) => {
+export const trackGrievance = async (req, res, next) => {
     try {
         const { ticket_id } = req.params;
         const [rows] = await db.promise().query(
@@ -145,39 +147,38 @@ export const trackGrievance = async (req, res) => {
              WHERE ticket_id = ?`,
             [ticket_id]
         );
-        if (!rows.length) return res.status(404).json({ error: 'Grievance not found' });
+        if (!rows.length) return next(new ErrorResponse('Grievance not found', 404));
         res.json(rows[0]);
     } catch (err) {
-        console.error('Error tracking grievance:', err);
-        res.status(500).json({ error: 'Server error while tracking grievance' });
+        next(err);
     }
 };
 
-export const getGrievancesByDepartment = (req, res) => {
+export const getGrievancesByDepartment = (req, res, next) => {
     const { departmentId } = req.params;
     getGrievancesByDepartmentFromModel(departmentId, (err, results) => {
-        if (err) return res.status(500).json({ error: 'DB error fetching grievances' });
+        if (err) return next(new ErrorResponse('DB error fetching grievances', 500));
         res.json(results);
     });
 };
 
-export const listWorkersByDepartment = (req, res) => {
+export const listWorkersByDepartment = (req, res, next) => {
     const { departmentId } = req.params;
     getWorkersByDepartment(departmentId, (err, results) => {
-        if (err) return res.status(500).json({ error: 'DB error fetching workers' });
+        if (err) return next(new ErrorResponse('DB error fetching workers', 500));
         res.json(results);
     });
 };
 
-export const addNewWorker = (req, res) => {
+export const addNewWorker = (req, res, next) => {
     const { name, email, phone_number, department_id } = req.body;
     createWorker({ name, email, phone_number, department_id }, (err, result) => {
-        if (err) return res.status(500).json({ error: 'DB error creating worker' });
+        if (err) return next(new ErrorResponse('DB error creating worker', 500));
         res.status(201).json({ message: 'Worker added successfully', workerId: result.insertId });
     });
 };
 
-export const assignGrievance = async (req, res) => {
+export const assignGrievance = async (req, res, next) => {
     try {
         const { ticketId } = req.params;
         const { workerId, officeBearerEmail } = req.body;
@@ -215,12 +216,11 @@ export const assignGrievance = async (req, res) => {
             res.status(200).json({ message: 'Grievance assigned successfully' });
         });
     } catch (err) {
-        console.error('Error assigning grievance:', err);
-        res.status(500).json({ error: 'Failed to assign grievance due to a server error.' });
+        next(err);
     }
 };
 
-export const resolveGrievance = async (req, res) => {
+export const resolveGrievance = async (req, res, next) => {
     try {
         const { ticketId } = req.params;
         updateGrievanceStatus(ticketId, 'Resolved', null, async (err) => {
@@ -237,12 +237,11 @@ export const resolveGrievance = async (req, res) => {
             res.status(200).json({ message: 'Grievance resolved successfully' });
         });
     } catch (err) {
-        console.error('Error resolving grievance:', err);
-        res.status(500).json({ error: 'Failed to resolve grievance due to a server error.' });
+        next(err);
     }
 };
 
-export const getEscalatedGrievances = (req, res) => {
+export const getEscalatedGrievances = (req, res, next) => {
     const sql = `
         SELECT
             g.ticket_id,
@@ -259,14 +258,13 @@ export const getEscalatedGrievances = (req, res) => {
     `;
     db.query(sql, (err, results) => {
         if (err) {
-            console.error("DB error fetching escalated grievances:", err);
-            return res.status(500).json({ error: 'DB error fetching escalated grievances' });
+            return next(new ErrorResponse('DB error fetching escalated grievances', 500));
         }
         res.json(results);
     });
 };
 
-export const revertGrievance = (req, res) => {
+export const revertGrievance = (req, res, next) => {
     const { ticketId } = req.params;
     const { new_resolution_days } = req.body;
 
@@ -275,17 +273,17 @@ export const revertGrievance = (req, res) => {
 
     const sql = "UPDATE grievances SET resolution_deadline = ?, escalation_level = 0 WHERE ticket_id = ?";
     db.query(sql, [new_resolution_deadline, ticketId], (err, result) => {
-        if (err) return res.status(500).json({ error: 'DB error reverting grievance' });
+        if (err) return next(new ErrorResponse('DB error reverting grievance', 500));
         res.status(200).json({ message: 'Grievance reverted with new resolution time.' });
     });
 };
 
-export const addOfficeBearer = (req, res) => {
+export const addOfficeBearer = (req, res, next) => {
     const { name, email, password, mobile_number, role, department } = req.body;
     const saltRounds = 6;
     bcrypt.hash(password, saltRounds, (err, hashedPassword) => {
         if (err) {
-            return res.status(500).json({ error: 'Error hashing password' });
+            return next(new ErrorResponse('Error hashing password', 500));
         }
         const sql = `
             INSERT INTO office_bearers (name, email, password, mobile_number, role, department)
@@ -293,7 +291,7 @@ export const addOfficeBearer = (req, res) => {
         `;
         db.query(sql, [name, email, hashedPassword, mobile_number, role, department], (err, result) => {
             if (err) {
-                return res.status(500).json({ error: 'Error creating office bearer' });
+                return next(new ErrorResponse('Error creating office bearer', 500));
             }
             res.status(201).json({ message: 'Office bearer added successfully', id: result.insertId });
         });
@@ -302,11 +300,11 @@ export const addOfficeBearer = (req, res) => {
 
 // --- ADMIN FUNCTIONS ---
 
-export const getAllGrievancesForAdmin = (req, res) => {
+export const getAllGrievancesForAdmin = (req, res, next) => {
     const sql = `
-        SELECT 
-            g.*, 
-            d.name as department_name, 
+        SELECT
+            g.*,
+            d.name as department_name,
             c.name as category_name
         FROM grievances g
         JOIN departments d ON g.department_id = d.id
@@ -314,12 +312,12 @@ export const getAllGrievancesForAdmin = (req, res) => {
         ORDER BY g.created_at DESC
     `;
     db.query(sql, (err, results) => {
-        if (err) return res.status(500).json({ error: 'DB error fetching all grievances' });
+        if (err) return next(new ErrorResponse('DB error fetching all grievances', 500));
         res.json(results);
     });
 };
 
-export const getAdminDashboardStats = (req, res) => {
+export const getAdminDashboardStats = (req, res, next) => {
     const queries = {
         byDepartment: `SELECT d.name, COUNT(g.id) as count FROM grievances g JOIN departments d ON g.department_id = d.id GROUP BY d.name`,
         byStatus: `SELECT status, COUNT(id) as count FROM grievances GROUP BY status`,
@@ -340,10 +338,10 @@ export const getAdminDashboardStats = (req, res) => {
                         });
                 });
         })
-        .catch(err => res.status(500).json({ error: 'DB error fetching stats', details: err }));
+        .catch(err => next(new ErrorResponse('DB error fetching stats', 500, err)));
 };
 
-export const getLevel2Grievances = (req, res) => {
+export const getLevel2Grievances = (req, res, next) => {
     const sql = `
         SELECT
             g.ticket_id, g.title, g.escalation_level, d.name as department_name
@@ -353,12 +351,12 @@ export const getLevel2Grievances = (req, res) => {
         ORDER BY g.escalation_level DESC, g.created_at ASC
     `;
     db.query(sql, (err, results) => {
-        if (err) return res.status(500).json({ error: 'DB error fetching Level 2 grievances' });
+        if (err) return next(new ErrorResponse('DB error fetching Level 2 grievances', 500));
         res.json(results);
     });
 };
 
-export const revertToLevel1 = async (req, res) => {
+export const revertToLevel1 = async (req, res, next) => {
     const { ticketId } = req.params;
     const { new_resolution_days, comment, adminEmail } = req.body;
 
@@ -379,43 +377,42 @@ export const revertToLevel1 = async (req, res) => {
 
         res.status(200).json({ message: 'Grievance reverted to Level 1.' });
     } catch (err) {
-        console.error("Error reverting to level 1:", err);
-        res.status(500).json({ error: 'DB error reverting grievance' });
+        next(err);
     }
 };
 
 
-export const addApprovingAuthority = (req, res) => {
+export const addApprovingAuthority = (req, res, next) => {
     const { name, email, password, mobile_number } = req.body;
     bcrypt.hash(password, 6, (err, hashedPassword) => {
-        if (err) return res.status(500).json({ error: 'Password encryption failed.' });
+        if (err) return next(new ErrorResponse('Password encryption failed.', 500));
         createApprovingAuthority({ name, email, hashedPassword, mobile_number, role: 'Approving Authority' }, (err2, result) => {
-            if (err2) return res.status(500).json({ error: 'Database error.' });
+            if (err2) return next(new ErrorResponse('Database error.', 500));
             res.status(201).json({ message: 'Approving Authority added successfully.', id: result.insertId });
         });
     });
 };
 
-export const addLocation = (req, res) => {
+export const addLocation = (req, res, next) => {
     const { name } = req.body;
     db.query('INSERT INTO locations (name) VALUES (?)', [name], (err, result) => {
-        if (err) return res.status(500).json({ error: 'DB error adding location' });
+        if (err) return next(new ErrorResponse('DB error adding location', 500));
         res.status(201).json({ message: 'Location added successfully', id: result.insertId });
     });
 };
 
-export const addDepartment = (req, res) => {
+export const addDepartment = (req, res, next) => {
     const { name } = req.body;
     db.query('INSERT INTO departments (name) VALUES (?)', [name], (err, result) => {
-        if (err) return res.status(500).json({ error: 'DB error adding department' });
+        if (err) return next(new ErrorResponse('DB error adding department', 500));
         res.status(201).json({ message: 'Department added successfully', id: result.insertId });
     });
 };
 
-export const addCategory = (req, res) => {
+export const addCategory = (req, res, next) => {
     const { name, department_id, urgency } = req.body;
     db.query('INSERT INTO categories (name, department_id, urgency) VALUES (?, ?, ?)', [name, department_id, urgency], (err, result) => {
-        if (err) return res.status(500).json({ error: 'DB error adding category' });
+        if (err) return next(new ErrorResponse('DB error adding category', 500));
         res.status(201).json({ message: 'Category added successfully', id: result.insertId });
     });
 };
