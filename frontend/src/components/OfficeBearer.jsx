@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ChevronDown, ChevronUp, Printer, X, UserPlus, FileSignature, Info, ArrowRightCircle, Plus } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Printer, X, UserPlus, FileSignature, Info, ArrowRightCircle, Plus, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
 import Modal from './Modal';
@@ -367,7 +367,7 @@ export default function OfficeBearer() {
                                         <td className="py-3 px-4"><span className={`font-bold ${g.urgency === 'Emergency' ? 'text-red-600' : g.urgency === 'High' ? 'text-yellow-600' : 'text-green-600'}`}>{g.urgency}</span></td>
                                         <td className="py-3 px-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${g.escalation_level > 0 ? 'bg-red-200 text-red-800' : g.status === "Submitted" ? "bg-yellow-200 text-yellow-800" : g.status === "In Progress" ? "bg-blue-200 text-blue-800" : "bg-green-200 text-green-800"}`}>{g.escalation_level > 0 ? 'Escalated' : g.status}</span></td>
                                         <td className="py-3 px-4">{new Date(g.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
-                                        <td className="py-3 px-4 flex gap-2">
+                                        <td className="py-3 px-4 flex gap-2 items-center">
                                             {g.escalation_level > 0 ? (
                                                 <span className="text-red-500 font-bold px-3 py-1">Locked</span>
                                             ) : (
@@ -383,6 +383,11 @@ export default function OfficeBearer() {
                                                         <button onClick={() => openInfoModal(g)} className="bg-gray-400 text-white p-2 rounded-full shadow hover:bg-gray-500 transition"><Info size={14} /></button>
                                                     )}
                                                 </>
+                                            )}
+                                            {g.attachment && (
+                                                <a href={g.attachment} target="_blank" rel="noopener noreferrer" className="bg-purple-500 text-white p-2 rounded shadow hover:bg-purple-600 transition">
+                                                    <Paperclip size={16} />
+                                                </a>
                                             )}
                                             <button onClick={() => handlePrint(g)} className="bg-gray-500 text-white p-2 rounded shadow hover:bg-gray-600 transition"><Printer size={16} /></button>
                                         </td>
@@ -469,6 +474,14 @@ export default function OfficeBearer() {
                                 hour: 'numeric', minute: 'numeric', hour12: true
                             })}
                         </p>
+                        {selectedGrievance.attachment && (
+                            <p>
+                                <strong>Attachment:</strong>{' '}
+                                <a href={selectedGrievance.attachment} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                    View Attachment
+                                </a>
+                            </p>
+                        )}
                     </div>
                 )}
             </Modal>
