@@ -9,8 +9,9 @@ export default function Navbar() {
 
     const handleLogout = () => {
         if (window.confirm("Are you sure you want to logout?")) {
-            // Optional: clear tokens or perform logout logic here
-            navigate("/");
+            // Clear all user session data from storage
+            localStorage.clear();
+            navigate("/login");
         }
     };
 
@@ -38,6 +39,10 @@ export default function Navbar() {
                     </Link>
                     <Link to="/track-grievance" className="relative group">
                         <span className="hover:text-gray-600 transition-colors duration-200">Track Grievance</span>
+                        <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
+                    </Link>
+                    <Link to="/grievance-history" className="relative group">
+                        <span className="hover:text-gray-600 transition-colors duration-200">History</span>
                         <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-gray-800 group-hover:w-full transition-all duration-300"></span>
                     </Link>
                     <Link to="/about" className="relative group">
@@ -75,6 +80,7 @@ export default function Navbar() {
                     <Link to="/home" className="block hover:text-gray-600 transition-colors duration-200">Home</Link>
                     <Link to="/submit-grievance" className="block hover:text-gray-600 transition-colors duration-200">Submit Grievance</Link>
                     <Link to="/track-grievance" className="block hover:text-gray-600 transition-colors duration-200">Track Grievance</Link>
+                    <Link to="/grievance-history" className="block hover:text-gray-600 transition-colors duration-200">History</Link>
                     <Link to="/about" className="block hover:text-gray-600 transition-colors duration-200">About</Link>
                     <Link to="/faq" className="block hover:text-gray-600 transition-colors duration-200">FAQs</Link>
                     {/* Logout */}

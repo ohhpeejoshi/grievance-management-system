@@ -1,6 +1,27 @@
 // backend/models/Grievance.js
 import { db } from '../config/db.js';
 
+// ... (existing functions: getAllDepartments, getAllLocations, etc.)
+
+// NEW: Fetch all grievances for a specific user by email
+export const getGrievancesByEmail = (email, callback) => {
+  const sql = `
+    SELECT
+      g.ticket_id,
+      g.title,
+      g.status,
+      g.created_at,
+      g.updated_at,
+      d.name AS department_name
+    FROM grievances g
+    JOIN departments d ON g.department_id = d.id
+    WHERE g.email = ?
+    ORDER BY g.created_at DESC
+  `;
+  db.query(sql, [email], callback);
+};
+
+
 // Fetch all departments (id, name)
 export const getAllDepartments = (callback) => {
   const sql = `

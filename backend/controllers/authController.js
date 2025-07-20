@@ -1,10 +1,8 @@
-
 import bcrypt from 'bcrypt';
 import { createUser, updateUserPassword, getUserByEmail } from '../models/User.js';
 import { db } from '../config/db.js';
 import { sendOtpEmail } from '../utils/sendOtp.js';
 import { getOfficeBearerByEmail } from '../models/OfficeBearer.js';
-// ← NEW import
 import { getApprovingAuthorityByEmail } from '../models/ApprovingAuthority.js';
 import { sendRegistrationEmail } from '../utils/mail.js';
 import { getAdminByEmail } from '../models/Admin.js';
@@ -21,7 +19,6 @@ export const registerUser = (req, res) => {
         createUser({ roll_number, name, email, hashedPassword, mobile_number }, async (err2) => {
             if (err2) return res.status(500).json({ error: 'Database error.' });
 
-            // ← FIRE‑AND‑FORGET the welcome email
             sendRegistrationEmail(email, name)
                 .catch(console.error);
 
@@ -30,87 +27,149 @@ export const registerUser = (req, res) => {
     });
 };
 
-export const loginUser = (req, res) => {
-    const { email, password, mobile_number } = req.body;
-    const query = 'SELECT * FROM users WHERE email = ?';
-    db.query(query, [email], async (err, results) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (!results.length) return res.status(400).json({ error: 'Email not registered' });
-        const user = results[0];
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) return res.status(400).json({ error: 'Incorrect password' });
-        if (user.mobile_number !== mobile_number)
-            return res.status(400).json({ error: 'Incorrect mobile number' });
+export const login = async (req, res) => {
+    const { email, password } = req.body;
 
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        otpStore.set(user.email, otp);
-        console.log(`OTP for login (${user.email}):`, otp);
+    const a = await db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+    const b = await db.promise().query('SELECT * FROM office_bearers WHERE email = ?', [email]);
+    const c = await db.promise().query('SELECT * FROM approving_authorities WHERE email = ?', [email]);
+    const d = await db.promise().query('SELECT * FROM admins WHERE email = ?', [email]);
 
-        try {
-            await sendOtpEmail(user.email, otp);
-            res.status(200).json({ message: 'OTP sent to email', email: user.email });
-        } catch {
-            res.status(500).json({ error: 'Failed to send OTP email' });
-        }
-    });
+    const user = a[0][0] || b[0][0] || c[0][0] || d[0][0];
+
+    if (!user) {
+        return res.status(400).json({ error: 'Email not registered' });
+    }
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(400).json({ error: 'Incorrect password' });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(user.email, { otp: otp, createdAt: Date.now() });
+    console.log(`OTP for login (${user.email}):`, otp);
+
+    try {
+        await sendOtpEmail(user.email, otp);
+        res.status(200).json({ message: 'OTP sent to email', email: user.email });
+    } catch {
+        res.status(500).json({ error: 'Failed to send OTP email' });
+    }
 };
 
 export const verifyOtp = (req, res) => {
     const { email, otp } = req.body;
-    const stored = otpStore.get(email);
-    if (!stored) return res.status(400).json({ error: 'OTP expired or not found' });
-    if (stored !== otp) return res.status(400).json({ error: 'Incorrect OTP' });
-    otpStore.delete(email);
-    res.status(200).json({ message: 'Login successful' });
-};
+    const storedData = otpStore.get(email);
 
-export const forgotPassword = (req, res) => {
-    const { identifier } = req.body;
-    const query = 'SELECT email FROM users WHERE email = ? OR mobile_number = ?';
-    db.query(query, [identifier, identifier], async (err, results) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (!results.length) return res.status(400).json({ error: 'Identifier not found' });
+    if (!storedData || storedData.otp !== otp) {
+        return res.status(400).json({ error: 'Incorrect OTP' });
+    }
 
-        const email = results[0].email;
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        otpStore.set(email, otp);
-        console.log(`OTP for reset (${email}):`, otp);
+    const isExpired = (Date.now() - storedData.createdAt) > 60000; // 60 seconds
+    if (isExpired) {
+        otpStore.delete(email);
+        return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
 
-        try {
-            await sendOtpEmail(email, otp);
-            res.status(200).json({ message: 'OTP has been sent to your email.' });
-        } catch {
-            res.status(500).json({ error: 'Failed to send OTP email' });
+    otpStore.delete(email); // OTP is used, so delete it.
+
+    const a = db.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+    const b = db.promise().query('SELECT * FROM office_bearers WHERE email = ?', [email]);
+    const c = db.promise().query('SELECT * FROM approving_authorities WHERE email = ?', [email]);
+    const d = db.promise().query('SELECT * FROM admins WHERE email = ?', [email]);
+
+    Promise.all([a, b, c, d]).then((results) => {
+        if (results[0][0][0]) {
+            res.status(200).json({ message: 'Login successful', role: 'user' });
+        } else if (results[1][0][0]) {
+            res.status(200).json({ message: 'Login successful', role: 'office-bearer', departmentId: results[1][0][0].department_id });
+        } else if (results[2][0][0]) {
+            res.status(200).json({ message: 'Login successful', role: 'approving-authority' });
+        } else if (results[3][0][0]) {
+            res.status(200).json({ message: 'Login successful', role: 'admin' });
+        } else {
+            res.status(400).json({ error: 'User not found after OTP verification' });
         }
     });
 };
 
-export const resetPassword = (req, res) => {
-    const { identifier, otp, newPassword } = req.body;
-    const query = 'SELECT email FROM users WHERE email = ? OR mobile_number = ?';
-    db.query(query, [identifier, identifier], (err, results) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (!results.length) return res.status(400).json({ error: 'Identifier not found' });
 
-        const email = results[0].email;
-        const stored = otpStore.get(email);
-        if (!stored) return res.status(400).json({ error: 'OTP expired or not found' });
-        if (stored !== otp) return res.status(400).json({ error: 'Incorrect OTP' });
+export const forgotPassword = async (req, res) => {
+    const { identifier } = req.body; // Identifier is the email
 
-        bcrypt.hash(newPassword, 6, (err2, hashed) => {
-            if (err2) return res.status(500).json({ error: 'Encryption failed.' });
-            updateUserPassword(email, hashed, (err3) => {
-                if (err3) return res.status(500).json({ error: 'DB error updating password' });
-                otpStore.delete(email);
-                res.status(200).json({ message: 'Password has been reset successfully.' });
-            });
-        });
-    });
+    const queries = [
+        db.promise().query('SELECT email FROM users WHERE email = ?', [identifier]),
+        db.promise().query('SELECT email FROM office_bearers WHERE email = ?', [identifier]),
+        db.promise().query('SELECT email FROM approving_authorities WHERE email = ?', [identifier]),
+        db.promise().query('SELECT email FROM admins WHERE email = ?', [identifier])
+    ];
+
+    try {
+        const results = await Promise.all(queries);
+        const foundUser = results.map(r => r[0][0]).find(user => user);
+
+        if (!foundUser) {
+            return res.status(404).json({ error: 'Email not found in any user role.' });
+        }
+
+        const email = foundUser.email;
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        otpStore.set(email, { otp: otp, purpose: 'reset', createdAt: Date.now() });
+        console.log(`OTP for password reset (${email}):`, otp);
+
+        await sendOtpEmail(email, otp);
+        res.status(200).json({ message: 'OTP has been sent to your registered email.' });
+
+    } catch (err) {
+        console.error("Forgot Password Error:", err);
+        res.status(500).json({ error: 'Database error or failed to send OTP.' });
+    }
 };
 
-/**
- * GET /api/auth/profile?email=...
- */
+export const resetPassword = async (req, res) => {
+    const { identifier, otp, newPassword } = req.body;
+    const email = identifier;
+
+    const storedData = otpStore.get(email);
+
+    if (!storedData || storedData.otp !== otp || storedData.purpose !== 'reset') {
+        return res.status(400).json({ error: 'Invalid OTP or request.' });
+    }
+
+    const isExpired = (Date.now() - storedData.createdAt) > 60000; // 60 seconds
+    if (isExpired) {
+        otpStore.delete(email);
+        return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(newPassword, 6);
+
+        const tables = ['users', 'office_bearers', 'approving_authorities', 'admins'];
+        let passwordUpdated = false;
+
+        for (const table of tables) {
+            const [results] = await db.promise().query(`SELECT id FROM ${table} WHERE email = ?`, [email]);
+            if (results.length > 0) {
+                await db.promise().query(`UPDATE ${table} SET password = ? WHERE email = ?`, [hashedPassword, email]);
+                passwordUpdated = true;
+                break;
+            }
+        }
+
+        if (passwordUpdated) {
+            otpStore.delete(email);
+            res.status(200).json({ message: 'Password has been reset successfully.' });
+        } else {
+            res.status(404).json({ error: 'User not found during password update.' });
+        }
+    } catch (err) {
+        console.error("Reset Password Error:", err);
+        res.status(500).json({ error: 'Failed to reset password due to a server error.' });
+    }
+};
+
+
 export const getUserProfile = (req, res) => {
     const email = req.query.email;
     if (!email) {
@@ -127,133 +186,4 @@ export const getUserProfile = (req, res) => {
         const { name, email: userEmail, mobile_number } = results[0];
         res.json({ name, email: userEmail, mobileNumber: mobile_number });
     });
-};
-const bearerOtpStore = new Map();
-
-export const officeBearerLogin = (req, res) => {
-    const { department, email, password, mobile_number } = req.body;
-    getOfficeBearerByEmail(email, (err, results) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (!results.length)
-            return res.status(400).json({ error: 'Email not registered as office bearer' });
-
-        const bearer = results[0];
-        if (bearer.department !== department)
-            return res.status(400).json({ error: 'Department mismatch' });
-
-        bcrypt.compare(password, bearer.password).then(ok => {
-            if (!ok) return res.status(400).json({ error: 'Incorrect password' });
-            if (bearer.mobile_number !== mobile_number)
-                return res.status(400).json({ error: 'Incorrect mobile number' });
-
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            bearerOtpStore.set(email, otp);
-            console.log(`Bearer OTP for ${email}:`, otp);
-
-            sendOtpEmail(email, otp)
-                .then(() => res.status(200).json({ message: 'OTP sent', email }))
-                .catch(() => res.status(500).json({ error: 'Failed to send OTP' }));
-        });
-    });
-};
-
-export const officeBearerVerifyOtp = (req, res) => {
-    const { email, otp } = req.body;
-    const stored = bearerOtpStore.get(email);
-    if (!stored) return res.status(400).json({ error: 'OTP expired or not requested' });
-    if (stored !== otp) return res.status(400).json({ error: 'Invalid OTP' });
-
-    bearerOtpStore.delete(email);
-    res.status(200).json({ message: 'Office bearer login successful' });
-};
-
-
-
-const authorityOtpStore = new Map();
-
-export const approvingAuthorityLogin = (req, res) => {
-    let { email, password, mobile_number } = req.body;
-    email = email.trim().toLowerCase();
-    console.log('ApprovingAuthorityLogin:', { email, mobile_number });
-
-    getApprovingAuthorityByEmail(email, (err, results) => {
-        if (err) {
-            console.error('DB error:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
-        if (!results.length) {
-            return res
-                .status(400)
-                .json({ error: 'Email not registered as approving authority' });
-        }
-
-        const auth = results[0];
-        bcrypt.compare(password, auth.password).then(ok => {
-            if (!ok) return res.status(400).json({ error: 'Incorrect password' });
-            if (auth.mobile_number !== mobile_number) {
-                return res.status(400).json({ error: 'Incorrect mobile number' });
-            }
-
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            authorityOtpStore.set(email, otp);
-            console.log(`Authority OTP for ${email}:`, otp);
-
-            sendOtpEmail(email, otp)
-                .then(() => res.status(200).json({ message: 'OTP sent', email }))
-                .catch(() => res.status(500).json({ error: 'Failed to send OTP' }));
-        });
-    });
-};
-
-export const approvingAuthorityVerifyOtp = (req, res) => {
-    const { email, otp } = req.body;
-    const stored = authorityOtpStore.get(email);
-    if (!stored) {
-        return res.status(400).json({ error: 'OTP expired or not requested' });
-    }
-    if (stored !== otp) {
-        return res.status(400).json({ error: 'Invalid OTP' });
-    }
-    authorityOtpStore.delete(email);
-    res.status(200).json({ message: 'Approving authority login successful' });
-};
-const adminOtpStore = new Map();
-
-// POST /api/auth/admin-login
-export const adminLogin = (req, res) => {
-    let { email, password, mobile_number } = req.body;
-    email = email.trim().toLowerCase();
-    console.log('AdminLogin:', { email, mobile_number });
-
-    getAdminByEmail(email, (err, results) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
-        if (!results.length)
-            return res.status(400).json({ error: 'Email not registered as admin' });
-
-        const admin = results[0];
-        bcrypt.compare(password, admin.password).then(ok => {
-            if (!ok) return res.status(400).json({ error: 'Incorrect password' });
-            if (admin.mobile_number !== mobile_number)
-                return res.status(400).json({ error: 'Incorrect mobile number' });
-
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            adminOtpStore.set(email, otp);
-            console.log(`Admin OTP for ${email}:`, otp);
-
-            sendOtpEmail(email, otp)
-                .then(() => res.status(200).json({ message: 'OTP sent', email }))
-                .catch(() => res.status(500).json({ error: 'Failed to send OTP' }));
-        });
-    });
-};
-
-// POST /api/auth/admin-verify-otp
-export const adminVerifyOtp = (req, res) => {
-    const { email, otp } = req.body;
-    const stored = adminOtpStore.get(email);
-    if (!stored) return res.status(400).json({ error: 'OTP expired or not requested' });
-    if (stored !== otp) return res.status(400).json({ error: 'Invalid OTP' });
-
-    adminOtpStore.delete(email);
-    res.status(200).json({ message: 'Admin login successful' });
 };

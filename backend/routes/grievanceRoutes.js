@@ -22,12 +22,17 @@ import {
     addApprovingAuthority,
     addLocation,
     addDepartment,
-    addCategory
+    addCategory,
+    getUserGrievanceHistory
 } from '../controllers/grievanceController.js';
 
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+// NEW: Route to get a user's grievance history
+router.get('/history/:email', getUserGrievanceHistory);
+
 
 // ... (existing routes)
 router.post('/submit', upload.single('attachment'), submitGrievance);

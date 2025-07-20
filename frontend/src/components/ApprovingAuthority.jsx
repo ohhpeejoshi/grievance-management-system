@@ -9,7 +9,7 @@ export default function ApprovingAuthority() {
     const [error, setError] = useState("");
     const [isAddBearerFormVisible, setAddBearerFormVisible] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
-    const [departmentFilter, setDepartmentFilter] = useState(''); // State for the filter
+    const [departmentFilter, setDepartmentFilter] = useState('');
     const navigate = useNavigate();
 
     const [newOfficeBearer, setNewOfficeBearer] = useState({
@@ -22,8 +22,11 @@ export default function ApprovingAuthority() {
     });
 
     useEffect(() => {
-        const email = localStorage.getItem("approvingAuthorityEmail");
-        if (!email) navigate("/approving-authority-login");
+        // The user's local storage key might be different, ensure it is correct
+        const email = localStorage.getItem("userEmail");
+        if (!email || localStorage.getItem("userRole") !== 'approving-authority') {
+            navigate("/login");
+        }
 
         Promise.all([
             fetch('/api/grievances/escalated').then(res => res.json()),
@@ -42,12 +45,10 @@ export default function ApprovingAuthority() {
     const filteredAndSortedGrievances = useMemo(() => {
         let filteredItems = [...allGrievances];
 
-        // Apply department filter
         if (departmentFilter) {
             filteredItems = filteredItems.filter(g => g.department_name === departmentFilter);
         }
 
-        // Apply sorting
         if (sortConfig.key !== null) {
             filteredItems.sort((a, b) => {
                 if (a[sortConfig.key] < b[sortConfig.key]) {
@@ -116,24 +117,39 @@ export default function ApprovingAuthority() {
         }
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("userRole");
+        navigate("/login");
+    };
+
+
     if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading dashboard...</div>;
     if (error) return <div className="min-h-screen flex items-center justify-center text-red-600 font-semibold">Error: {error}</div>;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
             <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8">
-                <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Approving Authority Dashboard</h1>
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-3xl font-bold text-gray-800">Approving Authority Dashboard</h1>
+                    <button
+                        onClick={handleLogout}
+                        className="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600"
+                    >
+                        Logout
+                    </button>
+                </div>
 
-                <div className="mb-8">
+                <div className="mb-8 text-center">
                     <button
                         onClick={() => setAddBearerFormVisible(!isAddBearerFormVisible)}
-                        className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
+                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-semibold inline-flex items-center justify-center gap-2"
                     >
                         {isAddBearerFormVisible ? 'Hide Form' : 'Add New Office Bearer'}
                         {isAddBearerFormVisible ? <ChevronUp /> : <ChevronDown />}
                     </button>
                     {isAddBearerFormVisible && (
-                        <form onSubmit={handleAddOfficeBearerSubmit} className="space-y-4 bg-white p-6 rounded-lg shadow mt-4">
+                        <form onSubmit={handleAddOfficeBearerSubmit} className="space-y-4 bg-white p-6 rounded-lg shadow mt-4 text-left">
                             <h2 className="text-xl font-semibold text-gray-800 text-center">New Office Bearer Details</h2>
                             <input type="text" name="name" placeholder="Name" value={newOfficeBearer.name} onChange={handleAddOfficeBearerChange} className="w-full p-2 border rounded" required />
                             <input type="email" name="email" placeholder="Email" value={newOfficeBearer.email} onChange={handleAddOfficeBearerChange} className="w-full p-2 border rounded" required />

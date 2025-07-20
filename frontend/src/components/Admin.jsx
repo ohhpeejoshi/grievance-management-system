@@ -59,10 +59,14 @@ export default function Admin() {
     });
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
 
+    const handleLogout = () => {
+        localStorage.clear();
+        navigate('/login');
+    };
 
     useEffect(() => {
         const email = localStorage.getItem("adminEmail");
-        if (!email) navigate("/admin-login");
+        if (!email) navigate("/login");
 
         Promise.all([
             fetch('/api/grievances/admin/all').then(res => res.json()),
@@ -196,7 +200,7 @@ export default function Admin() {
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-4xl font-bold text-gray-800">Admin Dashboard</h1>
-                    <button onClick={() => navigate('/landing-home')} className="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600">Logout</button>
+                    <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600">Logout</button>
                 </div>
 
                 {/* Charts Section */}

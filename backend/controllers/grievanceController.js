@@ -4,7 +4,8 @@ import {
     getCategoriesByDept,
     createGrievance,
     getGrievancesByDepartment as getGrievancesByDepartmentFromModel,
-    updateGrievanceStatus
+    updateGrievanceStatus,
+    getGrievancesByEmail
 } from '../models/Grievance.js';
 import { createApprovingAuthority } from '../models/ApprovingAuthority.js';
 import { getWorkersByDepartment, createWorker } from '../models/Worker.js';
@@ -29,6 +30,19 @@ const calculateDeadline = (hours) => {
     }
     return deadline;
 };
+
+// NEW: Controller to handle fetching user's grievance history
+export const getUserGrievanceHistory = (req, res) => {
+    const { email } = req.params;
+    getGrievancesByEmail(email, (err, results) => {
+        if (err) {
+            console.error("DB error fetching grievance history:", err);
+            return res.status(500).json({ error: 'DB error fetching grievance history' });
+        }
+        res.json(results);
+    });
+};
+
 
 export const listDepartments = (req, res) => {
     getAllDepartments((err, results) => {
