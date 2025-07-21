@@ -8,6 +8,12 @@ const GrievanceHistory = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState({
+        status: '',
+        department: ''
+    });
+    const [departments, setDepartments] = useState([]);
     const userEmail = localStorage.getItem('userEmail');
 
     useEffect(() => {
@@ -33,13 +39,42 @@ const GrievanceHistory = () => {
             }
         };
 
+        const fetchDepartments = async () => {
+            try {
+                const response = await fetch('/api/grievances/departments');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch departments');
+                }
+                const data = await response.json();
+                setDepartments(data);
+            } catch (err) {
+                toast.error(err.message);
+            }
+        }
+
         fetchHistory();
+        fetchDepartments();
     }, [userEmail]);
 
-    const sortedHistory = useMemo(() => {
-        let sortableItems = [...history];
+    const sortedAndFilteredHistory = useMemo(() => {
+        let filteredItems = [...history];
+
+        if (searchTerm) {
+            filteredItems = filteredItems.filter(item =>
+                item.ticket_id.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        if (filters.status) {
+            filteredItems = filteredItems.filter(item => item.status === filters.status);
+        }
+
+        if (filters.department) {
+            filteredItems = filteredItems.filter(item => item.department_name === filters.department);
+        }
+
         if (sortConfig.key !== null) {
-            sortableItems.sort((a, b) => {
+            filteredItems.sort((a, b) => {
                 if (a[sortConfig.key] < b[sortConfig.key]) {
                     return sortConfig.direction === 'ascending' ? -1 : 1;
                 }
@@ -49,8 +84,8 @@ const GrievanceHistory = () => {
                 return 0;
             });
         }
-        return sortableItems;
-    }, [history, sortConfig]);
+        return filteredItems;
+    }, [history, sortConfig, searchTerm, filters]);
 
     const requestSort = (key) => {
         let direction = 'ascending';
@@ -79,6 +114,10 @@ const GrievanceHistory = () => {
         });
     };
 
+    const handleFilterChange = (e) => {
+        setFilters({ ...filters, [e.target.name]: e.target.value });
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
@@ -98,6 +137,28 @@ const GrievanceHistory = () => {
         <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
             <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8">
                 <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Your Grievance History</h1>
+                <div className="flex flex-wrap items-center gap-2 mb-4 p-4 bg-gray-50 rounded-lg">
+                    <input
+                        type="text"
+                        placeholder="Search by Ticket ID..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="p-2 border rounded-lg w-full md:w-auto flex-grow"
+                    />
+                    <select name="status" value={filters.status} onChange={handleFilterChange} className="p-2 border rounded-lg w-full md:w-auto">
+                        <option value="">All Statuses</option>
+                        <option value="Submitted">Submitted</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Resolved">Resolved</option>
+                        <option value="Escalated">Escalated</option>
+                    </select>
+                    <select name="department" value={filters.department} onChange={handleFilterChange} className="p-2 border rounded-lg w-full md:w-auto">
+                        <option value="">All Departments</option>
+                        {departments.map(dept => (
+                            <option key={dept.id} value={dept.name}>{dept.name}</option>
+                        ))}
+                    </select>
+                </div>
                 {history.length === 0 ? (
                     <p className="text-center text-gray-600">You have not submitted any grievances yet.</p>
                 ) : (
@@ -116,11 +177,13 @@ const GrievanceHistory = () => {
                                     <th className="py-3 px-4 cursor-pointer" onClick={() => requestSort('created_at')}>
                                         <div className="flex items-center gap-1">Submitted On {getSortIcon('created_at')}</div>
                                     </th>
-                                    <th className="py-3 px-4">Last Updated</th>
+                                    <th className="py-3 px-4 cursor-pointer" onClick={() => requestSort('updated_at')}>
+                                        <div className="flex items-center gap-1">Last Updated {getSortIcon('updated_at')}</div>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {sortedHistory.map((grievance) => (
+                                {sortedAndFilteredHistory.map((grievance) => (
                                     <tr key={grievance.ticket_id} className="border-t hover:bg-gray-50">
                                         <td className="py-3 px-4 font-mono text-sm">{grievance.ticket_id}</td>
                                         <td className="py-3 px-4">{grievance.title}</td>
