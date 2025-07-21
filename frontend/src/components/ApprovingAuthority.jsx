@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronUp, MessageSquare, ArrowRightCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare, ArrowRightCircle, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
 import Modal from './Modal';
-import axios from 'axios'; // Import axios
+import axios from 'axios';
 
 export default function ApprovingAuthority() {
     const [allGrievances, setAllGrievances] = useState([]);
@@ -22,6 +22,7 @@ export default function ApprovingAuthority() {
     const [isRevertModalOpen, setRevertModalOpen] = useState(false);
     const [selectedGrievance, setSelectedGrievance] = useState(null);
     const [revertFormData, setRevertFormData] = useState({ days: '', comment: '' });
+    const [showFilters, setShowFilters] = useState(false);
 
     const [newOfficeBearer, setNewOfficeBearer] = useState({
         name: '', email: '', password: '', mobile_number: '', role: 'Office Bearer', department: ''
@@ -190,19 +191,19 @@ export default function ApprovingAuthority() {
                 <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8">
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-3xl font-bold text-gray-800">Approving Authority Dashboard</h1>
-                        <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600">
+                        <button onClick={handleLogout} className="btn btn-danger">
                             Logout
                         </button>
                     </div>
 
                     <div className="mb-8 flex justify-center gap-4">
                         <button onClick={() => setAddBearerFormVisible(!isAddBearerFormVisible)}
-                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-semibold inline-flex items-center justify-center gap-2">
+                            className="btn btn-primary inline-flex items-center justify-center gap-2">
                             {isAddBearerFormVisible ? 'Hide Form' : 'Add New Office Bearer'}
                             {isAddBearerFormVisible ? <ChevronUp /> : <ChevronDown />}
                         </button>
                         <button onClick={openTransferModal}
-                            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-semibold inline-flex items-center justify-center gap-2">
+                            className="btn bg-green-600 text-white hover:bg-green-700 inline-flex items-center justify-center gap-2">
                             <ArrowRightCircle size={20} />
                             Transfer Grievance
                         </button>
@@ -223,40 +224,50 @@ export default function ApprovingAuthority() {
                         </form>
                     )}
 
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-semibold text-gray-800">Escalated Grievances (Level 1)</h2>
-                        <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} className="p-2 border rounded-lg">
-                            <option value="">Filter by Department</option>
-                            {departments.map(dept => (<option key={dept.id} value={dept.name}>{dept.name}</option>))}
-                        </select>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full bg-white rounded-xl shadow text-left">
-                            <thead className="bg-gray-200 text-gray-700">
-                                <tr>
-                                    {['ticket_id', 'title', 'department_name', 'escalation_level', 'created_at'].map(key => (
-                                        <th key={key} className="py-3 px-4 cursor-pointer" onClick={() => requestSort(key)}>
-                                            <div className="flex items-center gap-1">{key.replace(/_/g, ' ').toUpperCase()}{getSortIcon(key)}</div>
-                                        </th>
-                                    ))}
-                                    <th className="py-3 px-4">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredAndSortedGrievances.map((g) => (
-                                    <tr key={g.ticket_id} className="border-t hover:bg-gray-50">
-                                        <td className="py-3 px-4 font-mono text-sm">{g.ticket_id}</td>
-                                        <td className="py-3 px-4">{g.title}</td>
-                                        <td className="py-3 px-4">{g.department_name}</td>
-                                        <td className="py-3 px-4 text-center font-bold text-red-600">{g.escalation_level}</td>
-                                        <td className="py-3 px-4">{new Date(g.created_at).toLocaleDateString()}</td>
-                                        <td className="py-3 px-4">
-                                            <button onClick={() => openRevertModal(g)} className="bg-blue-500 text-white px-3 py-1 rounded shadow hover:bg-blue-600">Revert</button>
-                                        </td>
+                    <div className="bg-white p-6 rounded-lg shadow-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-semibold text-gray-800">Escalated Grievances (Level 1)</h2>
+                            <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 text-blue-600 font-semibold">
+                                <Filter size={18} />
+                                {showFilters ? 'Hide Filters' : 'Show Filters'}
+                            </button>
+                        </div>
+                        {showFilters && (
+                            <div className="mb-4">
+                                <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} className="p-2 border rounded-lg w-full md:w-auto">
+                                    <option value="">Filter by Department</option>
+                                    {departments.map(dept => (<option key={dept.id} value={dept.name}>{dept.name}</option>))}
+                                </select>
+                            </div>
+                        )}
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-left">
+                                <thead className="bg-gray-200 text-gray-700">
+                                    <tr>
+                                        {['ticket_id', 'title', 'department_name', 'escalation_level', 'created_at'].map(key => (
+                                            <th key={key} className="py-3 px-4 cursor-pointer" onClick={() => requestSort(key)}>
+                                                <div className="flex items-center gap-1">{key.replace(/_/g, ' ').toUpperCase()}{getSortIcon(key)}</div>
+                                            </th>
+                                        ))}
+                                        <th className="py-3 px-4">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {filteredAndSortedGrievances.map((g) => (
+                                        <tr key={g.ticket_id} className="border-t hover:bg-gray-50">
+                                            <td className="py-3 px-4 font-mono text-sm">{g.ticket_id}</td>
+                                            <td className="py-3 px-4">{g.title}</td>
+                                            <td className="py-3 px-4">{g.department_name}</td>
+                                            <td className="py-3 px-4 text-center font-bold text-red-600">{g.escalation_level}</td>
+                                            <td className="py-3 px-4">{new Date(g.created_at).toLocaleDateString()}</td>
+                                            <td className="py-3 px-4">
+                                                <button onClick={() => openRevertModal(g)} className="btn btn-primary text-sm py-1">Revert</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
