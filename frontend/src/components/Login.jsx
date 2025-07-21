@@ -133,6 +133,7 @@ export default function Login() {
 
             localStorage.setItem("token", data.token);
             localStorage.setItem("userRole", data.role);
+            localStorage.setItem("userEmail", email);
             if (data.role === 'office-bearer') {
                 localStorage.setItem("departmentId", data.departmentId)
             }

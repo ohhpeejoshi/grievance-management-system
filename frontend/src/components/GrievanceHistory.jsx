@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import SkeletonLoader from './SkeletonLoader'; // Import the new skeleton loader
+import SkeletonLoader from './SkeletonLoader';
+import axios from 'axios'; // Import axios
 
 const GrievanceHistory = () => {
     const [history, setHistory] = useState([]);
@@ -23,37 +24,28 @@ const GrievanceHistory = () => {
             return;
         }
 
-        const fetchHistory = async () => {
+        const fetchData = async () => {
+            setIsLoading(true);
             try {
-                const response = await fetch(`/api/grievances/history/${userEmail}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch grievance history');
-                }
-                const data = await response.json();
-                setHistory(data);
+                // Use Promise.all to fetch both history and departments
+                const [historyRes, deptsRes] = await Promise.all([
+                    axios.get(`/api/grievances/history/${userEmail}`),
+                    axios.get('/api/grievances/departments')
+                ]);
+
+                setHistory(historyRes.data);
+                setDepartments(deptsRes.data);
+
             } catch (err) {
-                setError(err.message);
-                toast.error(err.message);
+                const message = err.response?.data?.error || 'Failed to fetch page data.';
+                setError(message);
+                toast.error(message);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        const fetchDepartments = async () => {
-            try {
-                const response = await fetch('/api/grievances/departments');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch departments');
-                }
-                const data = await response.json();
-                setDepartments(data);
-            } catch (err) {
-                toast.error(err.message);
-            }
-        }
-
-        fetchHistory();
-        fetchDepartments();
+        fetchData();
     }, [userEmail]);
 
     const sortedAndFilteredHistory = useMemo(() => {
