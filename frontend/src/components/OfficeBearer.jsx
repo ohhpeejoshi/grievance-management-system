@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ChevronDown, ChevronUp, Printer, X, UserPlus, FileSignature, Info, ArrowRightCircle, Plus, Paperclip } from 'lucide-react';
+import { Plus, Paperclip, Printer, Info, ArrowRightCircle, FileSignature, UserPlus, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
 import Modal from './Modal';
+import axios from 'axios'; // Import axios
 
 export default function OfficeBearer() {
     const [grievances, setGrievances] = useState([]);
@@ -20,11 +21,8 @@ export default function OfficeBearer() {
         endDate: ''
     });
 
-    // State for Transfer Modal
     const [isTransferModalOpen, setTransferModalOpen] = useState(false);
     const [transferFormData, setTransferFormData] = useState({ ticketId: '', newDepartmentId: '' });
-
-    // Other modal states
     const [isAssignModalOpen, setAssignModalOpen] = useState(false);
     const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
     const [isInfoModalOpen, setInfoModalOpen] = useState(false);
@@ -71,13 +69,13 @@ export default function OfficeBearer() {
         }
 
         Promise.all([
-            fetch(`/api/grievances/department/${departmentId}`).then(res => res.json()),
-            fetch(`/api/grievances/workers/${departmentId}`).then(res => res.json()),
-            fetch('/api/grievances/departments').then(res => res.json())
-        ]).then(([grievanceData, workerData, deptData]) => {
-            setGrievances(grievanceData);
-            setWorkers(workerData);
-            setDepartments(deptData);
+            axios.get(`/api/grievances/department/${departmentId}`),
+            axios.get(`/api/grievances/workers/${departmentId}`),
+            axios.get('/api/grievances/departments')
+        ]).then(([grievanceRes, workerRes, deptRes]) => {
+            setGrievances(grievanceRes.data);
+            setWorkers(workerRes.data);
+            setDepartments(deptRes.data);
             setIsLoading(false);
         }).catch(err => {
             console.error("Fetch error:", err);
@@ -87,7 +85,9 @@ export default function OfficeBearer() {
         });
     }, [departmentId, navigate]);
 
+
     const sortedAndFilteredGrievances = useMemo(() => {
+        if (!Array.isArray(grievances)) return []; // Prevent crash if grievances is not an array
         let sortableItems = [...grievances];
         sortableItems = sortableItems.filter(g => {
             const grievanceDate = new Date(g.created_at);
@@ -157,24 +157,16 @@ export default function OfficeBearer() {
 
         const toastId = toast.loading("Transferring grievance...");
         try {
-            const res = await fetch('/api/grievances/transfer', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ticketId: ticketId,
-                    newDepartmentId: newDepartmentId
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to transfer grievance.");
+            await axios.put('/api/grievances/transfer', { ticketId, newDepartmentId });
 
-            const refreshedGrievances = await fetch(`/api/grievances/department/${departmentId}`).then(res => res.json());
-            setGrievances(refreshedGrievances);
+            const refreshedRes = await axios.get(`/api/grievances/department/${departmentId}`);
+            setGrievances(refreshedRes.data);
 
             setTransferModalOpen(false);
             toast.success("Grievance transferred successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to transfer grievance.";
+            toast.error(message, { id: toastId });
         }
     };
 
@@ -188,23 +180,19 @@ export default function OfficeBearer() {
             const encodedTicketId = encodeURIComponent(selectedGrievance.ticket_id);
             const officeBearerEmail = localStorage.getItem("userEmail");
 
-            const res = await fetch(`/api/grievances/${encodedTicketId}/assign`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    workerId: selectedWorker,
-                    officeBearerEmail: officeBearerEmail
-                }),
+            await axios.put(`/api/grievances/${encodedTicketId}/assign`, {
+                workerId: selectedWorker,
+                officeBearerEmail: officeBearerEmail
             });
-            if (!res.ok) throw new Error("Failed to assign grievance.");
 
-            const refreshedGrievances = await fetch(`/api/grievances/department/${departmentId}`).then(res => res.json());
-            setGrievances(refreshedGrievances);
+            const refreshedRes = await axios.get(`/api/grievances/department/${departmentId}`);
+            setGrievances(refreshedRes.data);
 
             setAssignModalOpen(false);
             toast.success("Grievance assigned successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to assign grievance.";
+            toast.error(message, { id: toastId });
         }
     };
 
@@ -231,13 +219,13 @@ export default function OfficeBearer() {
         const toastId = toast.loading('Resolving grievance...');
         try {
             const encodedTicketId = encodeURIComponent(ticketId);
-            const res = await fetch(`/api/grievances/${encodedTicketId}/resolve`, { method: 'PUT' });
-            if (!res.ok) throw new Error("Failed to resolve grievance.");
-            const refreshedGrievances = await fetch(`/api/grievances/department/${departmentId}`).then(res => res.json());
-            setGrievances(refreshedGrievances);
+            await axios.put(`/api/grievances/${encodedTicketId}/resolve`);
+            const refreshedRes = await axios.get(`/api/grievances/department/${departmentId}`);
+            setGrievances(refreshedRes.data);
             toast.success("Grievance resolved successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to resolve grievance.";
+            toast.error(message, { id: toastId });
         }
     }
 
@@ -245,19 +233,14 @@ export default function OfficeBearer() {
         e.preventDefault();
         const toastId = toast.loading('Adding worker...');
         try {
-            const res = await fetch('/api/grievances/workers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...newWorker, department_id: departmentId }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to add worker.");
-            setWorkers([...workers, { id: data.workerId, ...newWorker, department_id: departmentId }]);
+            const res = await axios.post('/api/grievances/workers', { ...newWorker, department_id: departmentId });
+            setWorkers([...workers, { id: res.data.workerId, ...newWorker, department_id: departmentId }]);
             setNewWorker({ name: '', email: '', phone_number: '' });
             setAddWorkerModalOpen(false);
             toast.success("Worker added successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to add worker.";
+            toast.error(message, { id: toastId });
         }
     };
 

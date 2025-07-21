@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import { createUser, updateUserPassword, getUserByEmail } from '../models/User.js';
 import { db } from '../config/db.js';
 import { sendOtpEmail } from '../utils/sendOtp.js';
@@ -9,6 +10,12 @@ import { getAdminByEmail } from '../models/Admin.js';
 import ErrorResponse from '../utils/errorResponse.js';
 const otpStore = new Map();
 
+const generateToken = (email, role) => {
+    return jwt.sign({ email, role }, process.env.JWT_SECRET, {
+        expiresIn: '1d',
+    });
+};
+
 export const registerUser = async (req, res, next) => {
     const { roll_number, name, email, password, mobile_number } = req.body;
     if (!email.endsWith('@lnmiit.ac.in') && email !== 'grievanceportallnmiit@gmail.com') {
@@ -16,7 +23,6 @@ export const registerUser = async (req, res, next) => {
     }
 
     try {
-        // --- THE FIX: Check if email already exists in any user table ---
         const queries = [
             db.promise().query('SELECT email FROM users WHERE email = ?', [email]),
             db.promise().query('SELECT email FROM office_bearers WHERE email = ?', [email]),
@@ -30,12 +36,10 @@ export const registerUser = async (req, res, next) => {
         if (emailExists) {
             return next(new ErrorResponse('Email is already registered.', 400));
         }
-        // --------------------------------------------------------------------
 
         const hashedPassword = await bcrypt.hash(password, 6);
         createUser({ roll_number, name, email, hashedPassword, mobile_number }, async (err) => {
             if (err) {
-                // This will now only catch other unexpected database errors
                 return next(new ErrorResponse('Database error during user creation.', 500));
             }
 
@@ -105,32 +109,36 @@ export const verifyOtp = (req, res, next) => {
         const authority = authorityResults[0][0];
         const admin = adminResults[0][0];
 
+        let role;
+        let departmentId;
         if (user) {
-            return res.status(200).json({ message: 'Login successful', role: 'user' });
-        }
-
-        if (bearer) {
+            role = 'user';
+        } else if (bearer) {
+            role = 'office-bearer';
             try {
                 const [deptRows] = await db.promise().query('SELECT id FROM departments WHERE name = ?', [bearer.department]);
                 if (!deptRows.length) {
                     return next(new ErrorResponse('Office bearer department not found.', 400));
                 }
-                const departmentId = deptRows[0].id;
-                return res.status(200).json({ message: 'Login successful', role: 'office-bearer', departmentId: departmentId });
+                departmentId = deptRows[0].id;
             } catch (dbError) {
                 return next(new ErrorResponse('Database error fetching department ID.', 500));
             }
+        } else if (authority) {
+            role = 'approving-authority';
+        } else if (admin) {
+            role = 'admin';
+        } else {
+            return next(new ErrorResponse('User not found after OTP verification', 400));
         }
 
-        if (authority) {
-            return res.status(200).json({ message: 'Login successful', role: 'approving-authority' });
-        }
-
-        if (admin) {
-            return res.status(200).json({ message: 'Login successful', role: 'admin' });
-        }
-
-        return next(new ErrorResponse('User not found after OTP verification', 400));
+        const token = generateToken(email, role);
+        res.status(200).json({
+            message: 'Login successful',
+            token,
+            role,
+            departmentId
+        });
 
     }).catch(err => {
         console.error("Verify OTP error:", err);
@@ -213,12 +221,14 @@ export const resetPassword = async (req, res, next) => {
     }
 };
 
-
 export const getUserProfile = (req, res, next) => {
-    const email = req.query.email;
+    // The 'protect' middleware adds the user payload to req.user
+    const email = req.user.email;
+
     if (!email) {
-        return next(new ErrorResponse('Email is required', 400));
+        return next(new ErrorResponse('User not found from token', 404));
     }
+
     getUserByEmail(email, (err, results) => {
         if (err) {
             return next(new ErrorResponse('Database error', 500));

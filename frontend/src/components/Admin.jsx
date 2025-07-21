@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChevronDown, ChevronUp, LogOut, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
-import Modal from './Modal'; // Import the new shared Modal
+import Modal from './Modal';
+import axios from 'axios';
 
 // Helper for downloading CSV
 const downloadCSV = (data, filename = 'report.csv') => {
@@ -44,20 +45,16 @@ export default function Admin() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
 
-    // --- NEW: State for Revert Modal ---
     const [isRevertModalOpen, setRevertModalOpen] = useState(false);
     const [selectedGrievance, setSelectedGrievance] = useState(null);
     const [revertFormData, setRevertFormData] = useState({ days: '', comment: '' });
-    // ------------------------------------
 
-    // Form States
     const [activeForm, setActiveForm] = useState(null);
     const [newAuthority, setNewAuthority] = useState({ name: '', email: '', password: '', mobile_number: '' });
     const [newLocation, setNewLocation] = useState('');
     const [newDepartment, setNewDepartment] = useState('');
     const [newCategory, setNewCategory] = useState({ name: '', department_id: '', urgency: 'Normal' });
 
-    // Filter and Sort States
     const [filters, setFilters] = useState({
         department: '',
         status: '',
@@ -66,6 +63,27 @@ export default function Admin() {
         endDate: ''
     });
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
+
+    // --- CHART DATA PROCESSING ---
+    const statusChartData = useMemo(() => {
+        if (!stats?.byStatus) return [];
+        const allStatuses = ['Submitted', 'In Progress', 'Resolved'];
+        const dataMap = new Map(stats.byStatus.map(s => [s.status, s.count]));
+        return allStatuses.map(status => ({
+            status,
+            count: dataMap.get(status) || 0,
+        }));
+    }, [stats]);
+
+    const escalationChartData = useMemo(() => {
+        if (!stats?.byEscalation) return [];
+        const dataMap = new Map(stats.byEscalation.map(e => [e.escalation_level, e.count]));
+        return [
+            { level: 'Level 1', count: dataMap.get(1) || 0 },
+            { level: 'Level 2+', count: dataMap.get(2) || 0 }
+        ];
+    }, [stats]);
+    // ----------------------------
 
     const handleLogout = () => {
         toast((t) => (
@@ -97,21 +115,16 @@ export default function Admin() {
 
 
     useEffect(() => {
-        const email = localStorage.getItem("userEmail");
-        if (!email || localStorage.getItem("userRole") !== 'admin') {
-            navigate("/login");
-        }
-
         Promise.all([
-            fetch('/api/grievances/admin/all').then(res => res.json()),
-            fetch('/api/grievances/admin/stats').then(res => res.json()),
-            fetch('/api/grievances/departments').then(res => res.json()),
-            fetch('/api/grievances/admin/escalated-level2').then(res => res.json())
-        ]).then(([grievanceData, statsData, deptData, level2Data]) => {
-            setGrievances(grievanceData);
-            setStats(statsData);
-            setDepartments(deptData);
-            setLevel2Grievances(level2Data);
+            axios.get('/api/grievances/admin/all'),
+            axios.get('/api/grievances/admin/stats'),
+            axios.get('/api/grievances/departments'),
+            axios.get('/api/grievances/admin/escalated-level2')
+        ]).then(([grievanceRes, statsRes, deptRes, level2Res]) => {
+            setGrievances(grievanceRes.data);
+            setStats(statsRes.data);
+            setDepartments(deptRes.data);
+            setLevel2Grievances(level2Res.data);
             setIsLoading(false);
         }).catch(err => {
             console.error("Fetch error:", err);
@@ -171,20 +184,13 @@ export default function Admin() {
         e.preventDefault();
         const toastId = toast.loading('Submitting...');
         try {
-            const res = await fetch(`/api/grievances/admin/${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.error || 'Operation failed');
-            }
+            await axios.post(`/api/grievances/admin/${endpoint}`, body);
             toast.success('Success!', { id: toastId });
             successCallback();
             setActiveForm(null);
         } catch (err) {
-            toast.error(`Error: ${err.message}`, { id: toastId });
+            const message = err.response?.data?.error || 'Operation failed';
+            toast.error(`Error: ${message}`, { id: toastId });
         }
     };
 
@@ -215,21 +221,17 @@ export default function Admin() {
         const toastId = toast.loading('Reverting grievance...');
         const adminEmail = localStorage.getItem("userEmail");
         try {
-            const res = await fetch(`/api/grievances/admin/revert-to-level-1/${encodeURIComponent(selectedGrievance.ticket_id)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    new_resolution_days: revertFormData.days,
-                    comment: revertFormData.comment,
-                    adminEmail: adminEmail
-                })
+            await axios.put(`/api/grievances/admin/revert-to-level-1/${encodeURIComponent(selectedGrievance.ticket_id)}`, {
+                new_resolution_days: revertFormData.days,
+                comment: revertFormData.comment,
+                adminEmail: adminEmail
             });
-            if (!res.ok) throw new Error("Failed to revert grievance.");
             toast.success("Grievance reverted to Level 1 and Approving Authority notified.", { id: toastId });
             setLevel2Grievances(level2Grievances.filter(g => g.ticket_id !== selectedGrievance.ticket_id));
             setRevertModalOpen(false);
         } catch (err) {
-            toast.error(`Error: ${err.message}`, { id: toastId });
+            const message = err.response?.data?.error || "Failed to revert grievance.";
+            toast.error(`Error: ${message}`, { id: toastId });
         }
     };
 
@@ -259,17 +261,18 @@ export default function Admin() {
                                 <h2 className="text-xl font-semibold mb-4 text-center">Grievances by Department</h2>
                                 <ResponsiveContainer width="100%" height={300}>
                                     <PieChart>
-                                        <Pie data={stats.byDepartment} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={100} fill="#8884d8" label>
+                                        <Pie data={stats.byDepartment} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={(entry) => entry.name}>
                                             {stats.byDepartment.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                                         </Pie>
                                         <Tooltip />
+                                        <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h2 className="text-xl font-semibold mb-4 text-center">Grievances by Status</h2>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={stats.byStatus}>
+                                    <BarChart data={statusChartData}>
                                         <XAxis dataKey="status" />
                                         <YAxis />
                                         <Tooltip />
@@ -281,9 +284,9 @@ export default function Admin() {
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h2 className="text-xl font-semibold mb-4 text-center">Escalation Levels</h2>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={stats.byEscalation}>
-                                        <XAxis dataKey="escalation_level" name="Level" />
-                                        <YAxis />
+                                    <BarChart data={escalationChartData}>
+                                        <XAxis dataKey="level" />
+                                        <YAxis allowDecimals={false} />
                                         <Tooltip />
                                         <Legend />
                                         <Bar dataKey="count" fill="#ffc658" />

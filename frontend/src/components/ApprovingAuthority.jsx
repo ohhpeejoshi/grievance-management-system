@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronUp, LogOut, MessageSquare, ArrowRightCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare, ArrowRightCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
 import Modal from './Modal';
+import axios from 'axios'; // Import axios
 
 export default function ApprovingAuthority() {
     const [allGrievances, setAllGrievances] = useState([]);
@@ -15,11 +16,9 @@ export default function ApprovingAuthority() {
     const [departmentFilter, setDepartmentFilter] = useState('');
     const navigate = useNavigate();
 
-    // State for Transfer Modal
     const [isTransferModalOpen, setTransferModalOpen] = useState(false);
     const [transferFormData, setTransferFormData] = useState({ ticketId: '', newDepartmentId: '' });
 
-    // State for Revert Modal
     const [isRevertModalOpen, setRevertModalOpen] = useState(false);
     const [selectedGrievance, setSelectedGrievance] = useState(null);
     const [revertFormData, setRevertFormData] = useState({ days: '', comment: '' });
@@ -29,17 +28,12 @@ export default function ApprovingAuthority() {
     });
 
     useEffect(() => {
-        const email = localStorage.getItem("userEmail");
-        if (!email || localStorage.getItem("userRole") !== 'approving-authority') {
-            navigate("/login");
-        }
-
         Promise.all([
-            fetch('/api/grievances/escalated').then(res => res.json()),
-            fetch('/api/grievances/departments').then(res => res.json())
-        ]).then(([grievanceData, departmentData]) => {
-            setAllGrievances(grievanceData);
-            setDepartments(departmentData);
+            axios.get('/api/grievances/escalated'),
+            axios.get('/api/grievances/departments')
+        ]).then(([grievanceRes, departmentRes]) => {
+            setAllGrievances(grievanceRes.data);
+            setDepartments(departmentRes.data);
             setIsLoading(false);
         }).catch(err => {
             console.error("Fetch error:", err);
@@ -96,22 +90,18 @@ export default function ApprovingAuthority() {
         const authorityEmail = localStorage.getItem("userEmail");
 
         try {
-            const res = await fetch(`/api/grievances/revert/${encodeURIComponent(selectedGrievance.ticket_id)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    new_resolution_days: revertFormData.days,
-                    comment: revertFormData.comment,
-                    authorityEmail: authorityEmail
-                })
+            await axios.put(`/api/grievances/revert/${encodeURIComponent(selectedGrievance.ticket_id)}`, {
+                new_resolution_days: revertFormData.days,
+                comment: revertFormData.comment,
+                authorityEmail: authorityEmail
             });
-            if (!res.ok) throw new Error("Failed to revert grievance.");
 
             setAllGrievances(allGrievances.filter(g => g.ticket_id !== selectedGrievance.ticket_id));
             setRevertModalOpen(false);
             toast.success("Grievance reverted successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to revert grievance.";
+            toast.error(message, { id: toastId });
         }
     };
 
@@ -132,24 +122,19 @@ export default function ApprovingAuthority() {
 
         const toastId = toast.loading("Transferring grievance...");
         try {
-            const res = await fetch('/api/grievances/transfer', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ticketId: ticketId,
-                    newDepartmentId: newDepartmentId
-                })
+            await axios.put('/api/grievances/transfer', {
+                ticketId: ticketId,
+                newDepartmentId: newDepartmentId
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to transfer grievance.");
 
-            const refreshedGrievances = await fetch('/api/grievances/escalated').then(res => res.json());
-            setAllGrievances(refreshedGrievances);
+            const refreshedRes = await axios.get('/api/grievances/escalated');
+            setAllGrievances(refreshedRes.data);
 
             setTransferModalOpen(false);
             toast.success("Grievance transferred successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to transfer grievance.";
+            toast.error(message, { id: toastId });
         }
     };
 
@@ -161,19 +146,14 @@ export default function ApprovingAuthority() {
         e.preventDefault();
         const toastId = toast.loading("Adding Office Bearer...");
         try {
-            const res = await fetch('/api/grievances/add-office-bearer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newOfficeBearer)
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to add office bearer.");
+            await axios.post('/api/grievances/add-office-bearer', newOfficeBearer);
 
             toast.success("Office bearer added successfully!", { id: toastId });
             setNewOfficeBearer({ name: '', email: '', password: '', mobile_number: '', role: 'Office Bearer', department: '' });
             setAddBearerFormVisible(false);
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to add office bearer.";
+            toast.error(message, { id: toastId });
         }
     };
 
