@@ -56,5 +56,21 @@ export const db = {
             callback(error, results);
         });
     },
-    promise: () => pool.promise()
+    promise: () => pool.promise(),
+    /**
+     * Closes the connection pool.
+     * This should be called when the application is shutting down
+     * or when a script has finished its task.
+     */
+    end: () => {
+        if (pool) {
+            pool.end(err => {
+                if (err) {
+                    console.error('Error closing the database pool:', err);
+                    return;
+                }
+                console.log('Database pool closed.');
+            });
+        }
+    }
 };
