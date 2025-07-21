@@ -1,23 +1,12 @@
-// backend/scripts/escalationCron.js
-import { fileURLToPath } from 'url';
 import { db } from '../config/db.js';
 import { sendEscalationNotification } from '../utils/mail.js';
 
-/**
- * Checks if a given date falls on a Sunday.
- * @param {Date} date - The date to check.
- * @returns {boolean} - True if the date is a Sunday, false otherwise.
- */
+// Helper function to check if a date is a Sunday
 const isSunday = (date) => {
-    return date.getDay() === 0; // Sunday is 0 in JavaScript's getDay()
+    return date.getDay() === 0;
 };
 
-/**
- * Calculates the number of business days (excluding Sundays) between two dates.
- * @param {Date} startDate - The start date.
- * @param {Date} endDate - The end date.
- * @returns {number} - The total number of business days.
- */
+// Helper function to calculate business days (excluding Sundays) between two dates
 const calculateBusinessDays = (startDate, endDate) => {
     let count = 0;
     const curDate = new Date(startDate.getTime());
@@ -27,21 +16,16 @@ const calculateBusinessDays = (startDate, endDate) => {
         }
         curDate.setDate(curDate.getDate() + 1);
     }
-    return count - 1; // Subtract 1 to not count the start day itself
+    return count - 1; // Subtract 1 to not count the start day
 };
 
-/**
- * Checks for overdue grievances and escalates them to the next level.
- * This function is designed to be called periodically by the main app server.
- */
+
 export const checkAndEscalateGrievances = async () => {
-    console.log(`[${new Date().toISOString()}] Running escalation check...`);
+    console.log('Running escalation check...');
     try {
         const now = new Date();
 
-        // --- LEVEL 1 ESCALATION (Office Bearer -> Approving Authority) ---
-        // FIX: Use CONVERT_TZ to ensure the current time is in IST for comparison,
-        // making the query robust against server timezone configurations.
+        // --- LEVEL 1 ESCALATION ---
         const findLevel1GrievancesSQL = `
             SELECT
                 g.id, g.ticket_id, g.title, g.status, g.response_deadline, g.resolution_deadline
@@ -49,8 +33,8 @@ export const checkAndEscalateGrievances = async () => {
             WHERE
                 g.escalation_level = 0 AND g.status != 'Resolved'
                 AND (
-                    (g.status = 'Submitted' AND g.response_deadline < CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30')) OR
-                    (g.status = 'In Progress' AND g.resolution_deadline < CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))
+                    (g.status = 'Submitted' AND g.response_deadline < NOW()) OR
+                    (g.status = 'In Progress' AND g.resolution_deadline < NOW())
                 )
         `;
         const [grievancesToLevel1] = await db.promise().query(findLevel1GrievancesSQL);
@@ -62,7 +46,12 @@ export const checkAndEscalateGrievances = async () => {
 
             if (authorityEmails.length > 0) {
                 for (const grievance of grievancesToLevel1) {
-                    await db.promise().query('UPDATE grievances SET escalation_level = 1, status = \'Escalated\', updated_at = NOW() WHERE id = ?', [grievance.id]);
+                    // Check if today is Sunday. If so, skip escalation for today.
+                    if (isSunday(now)) {
+                        console.log(`Skipping Level 1 escalation for ${grievance.ticket_id} because today is Sunday.`);
+                        continue;
+                    }
+                    await db.promise().query('UPDATE grievances SET escalation_level = 1, updated_at = NOW() WHERE id = ?', [grievance.id]);
                     console.log(`Grievance ${grievance.ticket_id} escalated to Level 1.`);
                     for (const authorityEmail of authorityEmails) {
                         await sendEscalationNotification(grievance, authorityEmail, 1);
@@ -73,7 +62,8 @@ export const checkAndEscalateGrievances = async () => {
             console.log('No new grievances to escalate to Level 1.');
         }
 
-        // --- LEVEL 2 ESCALATION (Approving Authority -> Admin) ---
+
+        // --- LEVEL 2 ESCALATION ---
         const findLevel2GrievancesSQL = `
             SELECT
                 g.id, g.ticket_id, g.title, g.updated_at
@@ -113,25 +103,3 @@ export const checkAndEscalateGrievances = async () => {
         console.error('Error during grievance escalation process:', err);
     }
 };
-
-
-/**
- * This block checks if the script is being run directly from the command line.
- * If so, it executes the escalation check and then closes the database connection
- * to allow the Node.js process to terminate.
- */
-const isRunDirectly = fileURLToPath(import.meta.url) === process.argv[1];
-if (isRunDirectly) {
-    console.log('Running escalation script manually from command line...');
-    checkAndEscalateGrievances()
-        .then(() => {
-            console.log('Manual run finished.');
-        })
-        .catch(err => {
-            console.error('Manual run failed with an error:', err);
-        })
-        .finally(() => {
-            // Always try to close the connection pool
-            db.end();
-        });
-}
