@@ -17,17 +17,31 @@ export default function Login() {
     const location = useLocation();
 
     useEffect(() => {
-        if (location.state?.fromInactivity) {
-            return;
+        const token = localStorage.getItem('token');
+        const userRole = localStorage.getItem('userRole');
+
+        // If the user is already logged in, redirect them to their dashboard
+        if (token && userRole) {
+            switch (userRole) {
+                case 'user':
+                    navigate('/home');
+                    break;
+                case 'office-bearer':
+                    navigate('/office-bearer');
+                    break;
+                case 'approving-authority':
+                    navigate('/approving-authority');
+                    break;
+                case 'admin':
+                    navigate('/admin');
+                    break;
+                default:
+                    // If role is unknown, clear session and stay on login
+                    localStorage.clear();
+                    break;
+            }
         }
-        // This effect runs when the Login page loads.
-        // If a user navigates back to this page while logged in,
-        // this will clear their session, forcing a fresh login.
-        if (localStorage.getItem('userEmail')) {
-            localStorage.clear();
-            toast('You have been logged out.', { icon: 'info' });
-        }
-    }, [location]);
+    }, [navigate]);
 
 
     useEffect(() => {
@@ -117,8 +131,9 @@ export default function Login() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "OTP verification failed");
 
-            localStorage.setItem("userEmail", email);
+            localStorage.setItem("token", data.token);
             localStorage.setItem("userRole", data.role);
+            localStorage.setItem("userEmail", email);
             if (data.role === 'office-bearer') {
                 localStorage.setItem("departmentId", data.departmentId)
             }

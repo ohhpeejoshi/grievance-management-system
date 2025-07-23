@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react"; // Import useRef
+import { useState, useEffect, useRef } from "react";
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
+import axios from 'axios'; // Import axios
 
 export default function SubmitGrievance() {
     const [locationsList, setLocationsList] = useState([]);
@@ -23,48 +24,39 @@ export default function SubmitGrievance() {
     });
     const [previewUrl, setPreviewUrl] = useState(null);
     const [submitting, setSubmitting] = useState(false);
-    const fileInputRef = useRef(null); // Create a ref for the file input
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
-        const emailFromAuth = localStorage.getItem("userEmail");
-        if (!emailFromAuth) {
-            setProfileError("No user logged in.");
-            setProfileLoading(false);
-            return;
-        }
-
-        fetch(`http://localhost:3000/api/auth/profile?email=${emailFromAuth}`)
+        // The token is now sent automatically by the axios interceptor
+        axios.get(`/api/auth/profile`)
             .then(res => {
-                if (!res.ok) throw new Error("Failed to load profile");
-                return res.json();
-            })
-            .then(data => {
                 setUserData({
-                    name: data.name,
-                    email: data.email,
-                    mobileNumber: data.mobileNumber,
+                    name: res.data.name,
+                    email: res.data.email,
+                    mobileNumber: res.data.mobileNumber,
                 });
                 setFormData(p => ({
                     ...p,
-                    complainantName: data.name,
-                    mobileNumber: data.mobileNumber,
+                    complainantName: res.data.name,
+                    mobileNumber: res.data.mobileNumber,
                 }));
             })
             .catch(err => {
                 console.error("Profile fetch failed:", err);
-                setProfileError(err.message);
-                toast.error(err.message);
+                const message = err.response?.data?.error || "Failed to load profile.";
+                setProfileError(message);
+                toast.error(message);
             })
             .finally(() => setProfileLoading(false));
     }, []);
 
     useEffect(() => {
         Promise.all([
-            fetch("http://localhost:3000/api/grievances/departments").then(res => res.json()),
-            fetch("http://localhost:3000/api/grievances/locations").then(res => res.json())
-        ]).then(([depts, locs]) => {
-            setDepartmentsList(depts);
-            setLocationsList(locs);
+            axios.get("/api/grievances/departments"),
+            axios.get("/api/grievances/locations")
+        ]).then(([deptsRes, locsRes]) => {
+            setDepartmentsList(deptsRes.data);
+            setLocationsList(locsRes.data);
         }).catch(err => {
             console.error("Failed to fetch initial data:", err);
             toast.error("Failed to fetch initial data.");
@@ -76,9 +68,8 @@ export default function SubmitGrievance() {
 
         if (name === "department") {
             setFormData(p => ({ ...p, department: value, category: "", urgency: "Normal" }));
-            fetch(`http://localhost:3000/api/grievances/categories/${value}`)
-                .then(res => res.json())
-                .then(setCategoriesList)
+            axios.get(`/api/grievances/categories/${value}`)
+                .then(res => setCategoriesList(res.data))
                 .catch(err => {
                     console.error("Cat fetch failed:", err);
                     toast.error("Failed to fetch categories.");
@@ -112,8 +103,6 @@ export default function SubmitGrievance() {
 
         if (file.size > 2 * 1024 * 1024) {
             toast.error("File too large. Max size is 2MB.");
-            setFormData(p => ({ ...p, attachment: null }));
-            setPreviewUrl(null);
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
             }
@@ -141,19 +130,14 @@ export default function SubmitGrievance() {
             data.append("email", userData.email);
             if (formData.attachment) data.append("attachment", formData.attachment);
 
-            const res = await fetch("http://localhost:3000/api/grievances/submit", {
-                method: "POST",
-                body: data,
-            });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.error || "Submission failed");
+            const res = await axios.post("/api/grievances/submit", data);
 
             toast.success(
                 (t) => (
                     <div>
                         Grievance submitted successfully.
                         <br />
-                        Ticket ID: <strong>{json.ticket_id}</strong>
+                        Ticket ID: <strong>{res.data.ticket_id}</strong>
                     </div>
                 ),
                 { id: toastId, duration: 6000 }
@@ -172,14 +156,13 @@ export default function SubmitGrievance() {
             });
             setCategoriesList([]);
             setPreviewUrl(null);
-            // --- THE FIX ---
             if (fileInputRef.current) {
-                fileInputRef.current.value = ""; // Reset the file input
+                fileInputRef.current.value = "";
             }
-            // ---------------
         } catch (err) {
+            const message = err.response?.data?.error || "Submission failed";
             console.error(err);
-            toast.error(err.message, { id: toastId });
+            toast.error(message, { id: toastId });
         } finally {
             setSubmitting(false);
         }
@@ -197,8 +180,8 @@ export default function SubmitGrievance() {
 
     if (profileError) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <p className="text-red-600">{profileError}</p>
+            <div className="min-h-screen flex items-center justify-center text-center p-4">
+                <p className="text-red-600 bg-red-100 p-4 rounded-lg shadow-md">{profileError} Please try logging in again.</p>
             </div>
         );
     }
@@ -343,7 +326,7 @@ export default function SubmitGrievance() {
                         <input
                             type="file"
                             name="attachment"
-                            ref={fileInputRef} // Attach the ref to the input
+                            ref={fileInputRef}
                             className="w-full p-3 border border-gray-300 rounded-lg"
                             onChange={handleFileChange}
                         />

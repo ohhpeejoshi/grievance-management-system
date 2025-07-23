@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ChevronDown, ChevronUp, Printer, X, UserPlus, FileSignature, Info, ArrowRightCircle, Plus, Paperclip } from 'lucide-react';
+import { Plus, Paperclip, Printer, Info, ArrowRightCircle, FileSignature, UserPlus, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
 import Modal from './Modal';
+import axios from 'axios';
 
 export default function OfficeBearer() {
     const [grievances, setGrievances] = useState([]);
@@ -20,17 +21,15 @@ export default function OfficeBearer() {
         endDate: ''
     });
 
-    // State for Transfer Modal
     const [isTransferModalOpen, setTransferModalOpen] = useState(false);
     const [transferFormData, setTransferFormData] = useState({ ticketId: '', newDepartmentId: '' });
-
-    // Other modal states
     const [isAssignModalOpen, setAssignModalOpen] = useState(false);
     const [isAddWorkerModalOpen, setAddWorkerModalOpen] = useState(false);
     const [isInfoModalOpen, setInfoModalOpen] = useState(false);
     const [selectedGrievance, setSelectedGrievance] = useState(null);
     const [selectedWorker, setSelectedWorker] = useState('');
     const [newWorker, setNewWorker] = useState({ name: '', email: '', phone_number: '' });
+    const [showFilters, setShowFilters] = useState(false);
 
     const navigate = useNavigate();
     const departmentId = localStorage.getItem("departmentId");
@@ -71,13 +70,13 @@ export default function OfficeBearer() {
         }
 
         Promise.all([
-            fetch(`/api/grievances/department/${departmentId}`).then(res => res.json()),
-            fetch(`/api/grievances/workers/${departmentId}`).then(res => res.json()),
-            fetch('/api/grievances/departments').then(res => res.json())
-        ]).then(([grievanceData, workerData, deptData]) => {
-            setGrievances(grievanceData);
-            setWorkers(workerData);
-            setDepartments(deptData);
+            axios.get(`/api/grievances/department/${departmentId}`),
+            axios.get(`/api/grievances/workers/${departmentId}`),
+            axios.get('/api/grievances/departments')
+        ]).then(([grievanceRes, workerRes, deptRes]) => {
+            setGrievances(grievanceRes.data);
+            setWorkers(workerRes.data);
+            setDepartments(deptRes.data);
             setIsLoading(false);
         }).catch(err => {
             console.error("Fetch error:", err);
@@ -87,7 +86,9 @@ export default function OfficeBearer() {
         });
     }, [departmentId, navigate]);
 
+
     const sortedAndFilteredGrievances = useMemo(() => {
+        if (!Array.isArray(grievances)) return [];
         let sortableItems = [...grievances];
         sortableItems = sortableItems.filter(g => {
             const grievanceDate = new Date(g.created_at);
@@ -157,24 +158,16 @@ export default function OfficeBearer() {
 
         const toastId = toast.loading("Transferring grievance...");
         try {
-            const res = await fetch('/api/grievances/transfer', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ticketId: ticketId,
-                    newDepartmentId: newDepartmentId
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to transfer grievance.");
+            await axios.put('/api/grievances/transfer', { ticketId, newDepartmentId });
 
-            const refreshedGrievances = await fetch(`/api/grievances/department/${departmentId}`).then(res => res.json());
-            setGrievances(refreshedGrievances);
+            const refreshedRes = await axios.get(`/api/grievances/department/${departmentId}`);
+            setGrievances(refreshedRes.data);
 
             setTransferModalOpen(false);
             toast.success("Grievance transferred successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to transfer grievance.";
+            toast.error(message, { id: toastId });
         }
     };
 
@@ -188,25 +181,35 @@ export default function OfficeBearer() {
             const encodedTicketId = encodeURIComponent(selectedGrievance.ticket_id);
             const officeBearerEmail = localStorage.getItem("userEmail");
 
-            const res = await fetch(`/api/grievances/${encodedTicketId}/assign`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    workerId: selectedWorker,
-                    officeBearerEmail: officeBearerEmail
-                }),
+            await axios.put(`/api/grievances/${encodedTicketId}/assign`, {
+                workerId: selectedWorker,
+                officeBearerEmail: officeBearerEmail
             });
-            if (!res.ok) throw new Error("Failed to assign grievance.");
 
-            const refreshedGrievances = await fetch(`/api/grievances/department/${departmentId}`).then(res => res.json());
-            setGrievances(refreshedGrievances);
+            const refreshedRes = await axios.get(`/api/grievances/department/${departmentId}`);
+            setGrievances(refreshedRes.data);
 
             setAssignModalOpen(false);
             toast.success("Grievance assigned successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to assign grievance.";
+            toast.error(message, { id: toastId });
         }
     };
+
+    const resolveGrievance = async (ticketId) => {
+        const toastId = toast.loading('Resolving grievance...');
+        try {
+            const encodedTicketId = encodeURIComponent(ticketId);
+            await axios.put(`/api/grievances/${encodedTicketId}/resolve`);
+            const refreshedRes = await axios.get(`/api/grievances/department/${departmentId}`);
+            setGrievances(refreshedRes.data);
+            toast.success("Grievance resolved successfully!", { id: toastId });
+        } catch (err) {
+            const message = err.response?.data?.error || "Failed to resolve grievance.";
+            toast.error(message, { id: toastId });
+        }
+    }
 
     const handleResolveGrievance = async (ticketId) => {
         toast((t) => (
@@ -227,37 +230,23 @@ export default function OfficeBearer() {
         ));
     };
 
-    const resolveGrievance = async (ticketId) => {
-        const toastId = toast.loading('Resolving grievance...');
-        try {
-            const encodedTicketId = encodeURIComponent(ticketId);
-            const res = await fetch(`/api/grievances/${encodedTicketId}/resolve`, { method: 'PUT' });
-            if (!res.ok) throw new Error("Failed to resolve grievance.");
-            const refreshedGrievances = await fetch(`/api/grievances/department/${departmentId}`).then(res => res.json());
-            setGrievances(refreshedGrievances);
-            toast.success("Grievance resolved successfully!", { id: toastId });
-        } catch (err) {
-            toast.error(err.message, { id: toastId });
-        }
-    }
 
     const handleAddWorker = async (e) => {
         e.preventDefault();
         const toastId = toast.loading('Adding worker...');
         try {
-            const res = await fetch('/api/grievances/workers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...newWorker, department_id: departmentId }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to add worker.");
-            setWorkers([...workers, { id: data.workerId, ...newWorker, department_id: departmentId }]);
+            const res = await axios.post('/api/grievances/workers', { ...newWorker, department_id: departmentId });
+            setWorkers([...workers, { id: res.data.workerId, ...newWorker, department_id: departmentId }]);
             setNewWorker({ name: '', email: '', phone_number: '' });
-            setAddWorkerModalOpen(false);
             toast.success("Worker added successfully!", { id: toastId });
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to add worker.";
+            toast.error(message, { id: toastId });
+        } finally {
+            // --- FIX APPLIED ---
+            // The modal is now closed in the 'finally' block, ensuring it
+            // closes whether the request succeeds or fails.
+            setAddWorkerModalOpen(false);
         }
     };
 
@@ -297,8 +286,8 @@ export default function OfficeBearer() {
     };
 
     if (isLoading) return (
-        <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
-            <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8">
+        <div className="min-h-screen bg-gray-100 py-12 px-6">
+            <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-8">
                 <SkeletonLoader />
             </div>
         </div>
@@ -307,45 +296,51 @@ export default function OfficeBearer() {
 
     return (
         <>
-            <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
-                <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8">
+            <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-10 px-4">
+                <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-lg p-8">
+                    {/* Header */}
                     <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                         <h1 className="text-3xl font-bold text-gray-800">Office Bearer Dashboard</h1>
-                        <div className="flex items-center gap-4">
-                            <button onClick={() => setAddWorkerModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition flex items-center gap-2">
-                                <Plus size={20} /> Add Worker
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setAddWorkerModalOpen(true)} className="btn btn-primary flex items-center gap-2">
+                                <UserPlus size={20} /> Add Worker
                             </button>
-                            <button onClick={openTransferModal} className="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition flex items-center gap-2">
-                                <ArrowRightCircle size={20} /> Transfer Grievance
+                            <button onClick={openTransferModal} className="btn bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
+                                <ArrowRightCircle size={20} /> Transfer
                             </button>
-                            <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600 transition">Logout</button>
+                            <button onClick={handleLogout} className="btn btn-danger">Logout</button>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 mb-4 p-4 bg-gray-50 rounded-lg">
-                        <input
-                            type="text"
-                            placeholder="Search by Ticket ID..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="p-2 border rounded-lg w-full md:w-auto flex-grow"
-                        />
-                        <select name="urgency" value={filters.urgency} onChange={handleFilterChange} className="p-2 border rounded-lg w-full md:w-auto">
-                            <option value="">All Urgencies</option>
-                            <option value="Normal">Normal</option>
-                            <option value="High">High</option>
-                            <option value="Emergency">Emergency</option>
-                        </select>
-                        <select name="status" value={filters.status} onChange={handleFilterChange} className="p-2 border rounded-lg w-full md:w-auto">
-                            <option value="">All Statuses</option>
-                            <option value="Submitted">Submitted</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Resolved">Resolved</option>
-                            <option value="Escalated">Escalated</option>
-                        </select>
-                        <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="p-2 border rounded-lg w-full md:w-auto" />
-                        <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="p-2 border rounded-lg w-full md:w-auto" />
+                    {/* Collapsible Filter Section */}
+                    <div className="mb-4">
+                        <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 text-blue-600 font-semibold mb-2">
+                            <Filter size={18} />
+                            {showFilters ? 'Hide Filters' : 'Show Filters'}
+                            {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                        {showFilters && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 p-4 bg-gray-50 rounded-lg border">
+                                <input type="text" placeholder="Search by Ticket ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="p-2 border rounded-lg w-full" />
+                                <select name="urgency" value={filters.urgency} onChange={handleFilterChange} className="p-2 border rounded-lg w-full">
+                                    <option value="">All Urgencies</option>
+                                    <option value="Normal">Normal</option>
+                                    <option value="High">High</option>
+                                    <option value="Emergency">Emergency</option>
+                                </select>
+                                <select name="status" value={filters.status} onChange={handleFilterChange} className="p-2 border rounded-lg w-full">
+                                    <option value="">All Statuses</option>
+                                    <option value="Submitted">Submitted</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Resolved">Resolved</option>
+                                    <option value="Escalated">Escalated</option>
+                                </select>
+                                <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="p-2 border rounded-lg w-full" />
+                                <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="p-2 border rounded-lg w-full" />
+                            </div>
+                        )}
                     </div>
+
 
                     <div className="overflow-x-auto">
                         <table className="min-w-full bg-white rounded-xl shadow text-left">
@@ -356,7 +351,7 @@ export default function OfficeBearer() {
                                             <div className="flex items-center gap-1">{key.replace(/_/g, ' ').toUpperCase()}{getSortIcon(key)}</div>
                                         </th>
                                     ))}
-                                    <th className="py-3 px-4">Actions</th>
+                                    <th className="py-3 px-4 text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -365,31 +360,35 @@ export default function OfficeBearer() {
                                         <td className="py-3 px-4 font-mono text-sm">{g.ticket_id}</td>
                                         <td className="py-3 px-4">{g.title}</td>
                                         <td className="py-3 px-4"><span className={`font-bold ${g.urgency === 'Emergency' ? 'text-red-600' : g.urgency === 'High' ? 'text-yellow-600' : 'text-green-600'}`}>{g.urgency}</span></td>
-                                        <td className="py-3 px-4"><span className={`px-3 py-1 rounded-full text-xs font-medium ${g.escalation_level > 0 ? 'bg-red-200 text-red-800' : g.status === "Submitted" ? "bg-yellow-200 text-yellow-800" : g.status === "In Progress" ? "bg-blue-200 text-blue-800" : "bg-green-200 text-green-800"}`}>{g.escalation_level > 0 ? 'Escalated' : g.status}</span></td>
+                                        <td className="py-3 px-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${g.escalation_level > 0 ? 'bg-red-200 text-red-800' : g.status === "Submitted" ? "bg-yellow-200 text-yellow-800" : g.status === "In Progress" ? "bg-blue-200 text-blue-800" : "bg-green-200 text-green-800"}`}>
+                                                {g.escalation_level > 0 ? 'Escalated' : g.status}
+                                            </span>
+                                        </td>
                                         <td className="py-3 px-4">{new Date(g.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
-                                        <td className="py-3 px-4 flex gap-2 items-center">
+                                        <td className="py-3 px-4 flex gap-2 items-center justify-center">
                                             {g.escalation_level > 0 ? (
                                                 <span className="text-red-500 font-bold px-3 py-1">Locked</span>
                                             ) : (
                                                 <>
-                                                    {g.status === 'Submitted' && (<button onClick={() => openAssignModal(g)} className="bg-blue-500 text-white px-3 py-1 rounded shadow hover:bg-blue-600 transition">Assign</button>)}
+                                                    {g.status === 'Submitted' && (<button onClick={() => openAssignModal(g)} className="btn btn-primary text-sm py-1">Assign</button>)}
                                                     {g.status === 'In Progress' && (
                                                         <>
-                                                            <button onClick={() => handleResolveGrievance(g.ticket_id)} className="bg-green-500 text-white px-3 py-1 rounded shadow hover:bg-green-600 transition">Resolve</button>
-                                                            <button onClick={() => openInfoModal(g)} className="bg-gray-400 text-white p-2 rounded-full shadow hover:bg-gray-500 transition"><Info size={14} /></button>
+                                                            <button onClick={() => handleResolveGrievance(g.ticket_id)} className="btn bg-green-500 hover:bg-green-600 text-white text-sm py-1">Resolve</button>
+                                                            <button onClick={() => openInfoModal(g)} className="btn btn-secondary p-2"><Info size={14} /></button>
                                                         </>
                                                     )}
                                                     {g.status === 'Resolved' && (
-                                                        <button onClick={() => openInfoModal(g)} className="bg-gray-400 text-white p-2 rounded-full shadow hover:bg-gray-500 transition"><Info size={14} /></button>
+                                                        <button onClick={() => openInfoModal(g)} className="btn btn-secondary p-2"><Info size={14} /></button>
                                                     )}
                                                 </>
                                             )}
                                             {g.attachment && (
-                                                <a href={g.attachment} target="_blank" rel="noopener noreferrer" className="bg-purple-500 text-white p-2 rounded shadow hover:bg-purple-600 transition">
+                                                <a href={g.attachment} target="_blank" rel="noopener noreferrer" className="btn bg-purple-500 hover:bg-purple-600 text-white p-2">
                                                     <Paperclip size={16} />
                                                 </a>
                                             )}
-                                            <button onClick={() => handlePrint(g)} className="bg-gray-500 text-white p-2 rounded shadow hover:bg-gray-600 transition"><Printer size={16} /></button>
+                                            <button onClick={() => handlePrint(g)} className="btn btn-secondary p-2"><Printer size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}

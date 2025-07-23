@@ -19,8 +19,10 @@
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "imagekit": "^6.0.0",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.1",
     "mysql2": "^3.14.1",
+    "node-cron": "^3.0.0",
     "nodemailer": "^7.0.5",
     "nodemon": "^3.1.10",
     "pdfkit": "^0.17.1"

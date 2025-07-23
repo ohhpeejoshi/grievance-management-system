@@ -1,4 +1,3 @@
-// backend/routes/grievanceRoutes.js
 import express from 'express';
 import multer from 'multer';
 import {
@@ -26,16 +25,16 @@ import {
     getUserGrievanceHistory,
     transferGrievance
 } from '../controllers/grievanceController.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// NEW: Route to get a user's grievance history
+// Apply protect middleware to all routes that require authentication
+router.use(protect);
+
 router.get('/history/:email', getUserGrievanceHistory);
-
-
-// ... (existing routes)
 router.post('/submit', upload.single('attachment'), submitGrievance);
 router.get('/track/:ticket_id(.*)', trackGrievance);
 router.get('/departments', listDepartments);
@@ -60,6 +59,5 @@ router.post('/admin/add-authority', addApprovingAuthority);
 router.post('/admin/add-location', addLocation);
 router.post('/admin/add-department', addDepartment);
 router.post('/admin/add-category', addCategory);
-
 
 export default router;

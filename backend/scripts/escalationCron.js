@@ -20,7 +20,7 @@ const calculateBusinessDays = (startDate, endDate) => {
 };
 
 
-const checkAndEscalateGrievances = async () => {
+export const checkAndEscalateGrievances = async () => {
     console.log('Running escalation check...');
     try {
         const now = new Date();
@@ -103,5 +103,3 @@ const checkAndEscalateGrievances = async () => {
         console.error('Error during grievance escalation process:', err);
     }
 };
-
-checkAndEscalateGrievances();

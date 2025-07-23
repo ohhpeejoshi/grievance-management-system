@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChevronDown, ChevronUp, LogOut, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
-import Modal from './Modal'; // Import the new shared Modal
+import Modal from './Modal';
+import axios from 'axios';
 
-// Helper for downloading CSV
 const downloadCSV = (data, filename = 'report.csv') => {
     if (!data || data.length === 0) {
         toast.error("No data to download.");
@@ -44,28 +44,46 @@ export default function Admin() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
 
-    // --- NEW: State for Revert Modal ---
     const [isRevertModalOpen, setRevertModalOpen] = useState(false);
     const [selectedGrievance, setSelectedGrievance] = useState(null);
     const [revertFormData, setRevertFormData] = useState({ days: '', comment: '' });
-    // ------------------------------------
 
-    // Form States
     const [activeForm, setActiveForm] = useState(null);
     const [newAuthority, setNewAuthority] = useState({ name: '', email: '', password: '', mobile_number: '' });
     const [newLocation, setNewLocation] = useState('');
     const [newDepartment, setNewDepartment] = useState('');
     const [newCategory, setNewCategory] = useState({ name: '', department_id: '', urgency: 'Normal' });
 
-    // Filter and Sort States
+    // --- UPDATED FILTER STATE ---
     const [filters, setFilters] = useState({
         department: '',
         status: '',
         escalation: '',
+        urgency: '', // Added urgency to the filter state
         startDate: '',
         endDate: ''
     });
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
+    const [showFilters, setShowFilters] = useState(false);
+
+    const statusChartData = useMemo(() => {
+        if (!stats?.byStatus) return [];
+        const allStatuses = ['Submitted', 'In Progress', 'Resolved'];
+        const dataMap = new Map(stats.byStatus.map(s => [s.status, s.count]));
+        return allStatuses.map(status => ({
+            status,
+            count: dataMap.get(status) || 0,
+        }));
+    }, [stats]);
+
+    const escalationChartData = useMemo(() => {
+        if (!stats?.byEscalation) return [];
+        const dataMap = new Map(stats.byEscalation.map(e => [e.escalation_level, e.count]));
+        return [
+            { level: 'Level 1', count: dataMap.get(1) || 0 },
+            { level: 'Level 2+', count: dataMap.get(2) || 0 }
+        ];
+    }, [stats]);
 
     const handleLogout = () => {
         toast((t) => (
@@ -97,30 +115,24 @@ export default function Admin() {
 
 
     useEffect(() => {
-        const email = localStorage.getItem("userEmail");
-        if (!email || localStorage.getItem("userRole") !== 'admin') {
-            navigate("/login");
-        }
-
         Promise.all([
-            fetch('/api/grievances/admin/all').then(res => res.json()),
-            fetch('/api/grievances/admin/stats').then(res => res.json()),
-            fetch('/api/grievances/departments').then(res => res.json()),
-            fetch('/api/grievances/admin/escalated-level2').then(res => res.json())
-        ]).then(([grievanceData, statsData, deptData, level2Data]) => {
-            setGrievances(grievanceData);
-            setStats(statsData);
-            setDepartments(deptData);
-            setLevel2Grievances(level2Data);
-            setIsLoading(false);
+            axios.get('/api/grievances/admin/all'),
+            axios.get('/api/grievances/admin/stats'),
+            axios.get('/api/grievances/departments'),
+            axios.get('/api/grievances/admin/escalated-level2')
+        ]).then(([grievanceRes, statsRes, deptRes, level2Res]) => {
+            setGrievances(grievanceRes.data);
+            setStats(statsRes.data);
+            setDepartments(deptRes.data);
+            setLevel2Grievances(level2Res.data);
         }).catch(err => {
             console.error("Fetch error:", err);
             setError("Failed to load admin data.");
             toast.error("Failed to load admin data.");
-            setIsLoading(false);
-        });
+        }).finally(() => setIsLoading(false));
     }, [navigate]);
 
+    // --- UPDATED FILTER LOGIC ---
     const filteredAndSortedGrievances = useMemo(() => {
         let items = [...grievances];
         items = items.filter(g => {
@@ -133,6 +145,7 @@ export default function Admin() {
             if (filters.department && g.department_name !== filters.department) return false;
             if (filters.status && g.status !== filters.status) return false;
             if (filters.escalation && g.escalation_level < parseInt(filters.escalation)) return false;
+            if (filters.urgency && g.urgency !== filters.urgency) return false; // Added urgency filter logic
 
             return true;
         });
@@ -171,20 +184,13 @@ export default function Admin() {
         e.preventDefault();
         const toastId = toast.loading('Submitting...');
         try {
-            const res = await fetch(`/api/grievances/admin/${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.error || 'Operation failed');
-            }
+            await axios.post(`/api/grievances/admin/${endpoint}`, body);
             toast.success('Success!', { id: toastId });
             successCallback();
             setActiveForm(null);
         } catch (err) {
-            toast.error(`Error: ${err.message}`, { id: toastId });
+            const message = err.response?.data?.error || 'Operation failed';
+            toast.error(`Error: ${message}`, { id: toastId });
         }
     };
 
@@ -215,21 +221,18 @@ export default function Admin() {
         const toastId = toast.loading('Reverting grievance...');
         const adminEmail = localStorage.getItem("userEmail");
         try {
-            const res = await fetch(`/api/grievances/admin/revert-to-level-1/${encodeURIComponent(selectedGrievance.ticket_id)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    new_resolution_days: revertFormData.days,
-                    comment: revertFormData.comment,
-                    adminEmail: adminEmail
-                })
+            await axios.put(`/api/grievances/admin/revert-to-level-1/${encodeURIComponent(selectedGrievance.ticket_id)}`, {
+                new_resolution_days: revertFormData.days,
+                comment: revertFormData.comment,
+                adminEmail: adminEmail
             });
-            if (!res.ok) throw new Error("Failed to revert grievance.");
             toast.success("Grievance reverted to Level 1 and Approving Authority notified.", { id: toastId });
             setLevel2Grievances(level2Grievances.filter(g => g.ticket_id !== selectedGrievance.ticket_id));
-            setRevertModalOpen(false);
         } catch (err) {
-            toast.error(`Error: ${err.message}`, { id: toastId });
+            const message = err.response?.data?.error || "Failed to revert grievance.";
+            toast.error(`Error: ${message}`, { id: toastId });
+        } finally {
+            setRevertModalOpen(false);
         }
     };
 
@@ -250,7 +253,7 @@ export default function Admin() {
                 <div className="max-w-7xl mx-auto">
                     <div className="flex justify-between items-center mb-8">
                         <h1 className="text-4xl font-bold text-gray-800">Admin Dashboard</h1>
-                        <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg shadow hover:bg-red-600">Logout</button>
+                        <button onClick={handleLogout} className="btn btn-danger">Logout</button>
                     </div>
 
                     {stats && (
@@ -259,17 +262,18 @@ export default function Admin() {
                                 <h2 className="text-xl font-semibold mb-4 text-center">Grievances by Department</h2>
                                 <ResponsiveContainer width="100%" height={300}>
                                     <PieChart>
-                                        <Pie data={stats.byDepartment} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={100} fill="#8884d8" label>
+                                        <Pie data={stats.byDepartment} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={(entry) => entry.name}>
                                             {stats.byDepartment.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                                         </Pie>
                                         <Tooltip />
+                                        <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h2 className="text-xl font-semibold mb-4 text-center">Grievances by Status</h2>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={stats.byStatus}>
+                                    <BarChart data={statusChartData}>
                                         <XAxis dataKey="status" />
                                         <YAxis />
                                         <Tooltip />
@@ -281,9 +285,9 @@ export default function Admin() {
                             <div className="bg-white p-6 rounded-lg shadow">
                                 <h2 className="text-xl font-semibold mb-4 text-center">Escalation Levels</h2>
                                 <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={stats.byEscalation}>
-                                        <XAxis dataKey="escalation_level" name="Level" />
-                                        <YAxis />
+                                    <BarChart data={escalationChartData}>
+                                        <XAxis dataKey="level" />
+                                        <YAxis allowDecimals={false} />
                                         <Tooltip />
                                         <Legend />
                                         <Bar dataKey="count" fill="#ffc658" />
@@ -314,7 +318,7 @@ export default function Admin() {
                                             <td className="p-3">{g.department_name}</td>
                                             <td className="p-3 font-bold text-center text-red-700">{g.escalation_level}</td>
                                             <td className="p-3">
-                                                <button onClick={() => openRevertModal(g)} className="bg-yellow-500 text-white px-3 py-1 rounded shadow hover:bg-yellow-600">Revert to Level 1</button>
+                                                <button onClick={() => openRevertModal(g)} className="btn bg-yellow-500 text-white hover:bg-yellow-600 text-sm py-1">Revert to Level 1</button>
                                             </td>
                                         </tr>
                                     ))}
@@ -327,10 +331,10 @@ export default function Admin() {
                     <div className="bg-white p-6 rounded-lg shadow mb-8">
                         <h2 className="text-2xl font-semibold mb-4">Management Actions</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                            <button onClick={() => toggleForm('authority')} className="bg-blue-500 text-white py-2 rounded-lg w-full">Add Authority</button>
-                            <button onClick={() => toggleForm('location')} className="bg-blue-500 text-white py-2 rounded-lg w-full">Add Location</button>
-                            <button onClick={() => toggleForm('department')} className="bg-blue-500 text-white py-2 rounded-lg w-full">Add Department</button>
-                            <button onClick={() => toggleForm('category')} className="bg-blue-500 text-white py-2 rounded-lg w-full">Add Category</button>
+                            <button onClick={() => toggleForm('authority')} className="btn btn-primary">Add Authority</button>
+                            <button onClick={() => toggleForm('location')} className="btn btn-primary">Add Location</button>
+                            <button onClick={() => toggleForm('department')} className="btn btn-primary">Add Department</button>
+                            <button onClick={() => toggleForm('category')} className="btn btn-primary">Add Category</button>
                         </div>
 
                         {activeForm === 'authority' && (
@@ -340,21 +344,21 @@ export default function Admin() {
                                 <input type="email" placeholder="Email" value={newAuthority.email} onChange={e => setNewAuthority({ ...newAuthority, email: e.target.value })} className="w-full p-2 border rounded" required />
                                 <input type="password" placeholder="Password" value={newAuthority.password} onChange={e => setNewAuthority({ ...newAuthority, password: e.target.value })} className="w-full p-2 border rounded" required />
                                 <input type="tel" placeholder="Mobile Number" value={newAuthority.mobile_number} onChange={e => setNewAuthority({ ...newAuthority, mobile_number: e.target.value })} className="w-full p-2 border rounded" required />
-                                <button type="submit" className="w-full bg-green-500 text-white py-2 rounded">Submit</button>
+                                <button type="submit" className="w-full btn bg-green-500 hover:bg-green-600 text-white">Submit</button>
                             </form>
                         )}
                         {activeForm === 'location' && (
                             <form onSubmit={(e) => handleFormSubmit(e, 'add-location', { name: newLocation }, () => setNewLocation(''))} className="space-y-2 mt-4 p-4 border rounded-lg">
                                 <h3 className="font-semibold text-lg mb-2">Add Location</h3>
                                 <input type="text" placeholder="Location Name" value={newLocation} onChange={e => setNewLocation(e.target.value)} className="w-full p-2 border rounded" required />
-                                <button type="submit" className="w-full bg-green-500 text-white py-2 rounded">Submit</button>
+                                <button type="submit" className="w-full btn bg-green-500 hover:bg-green-600 text-white">Submit</button>
                             </form>
                         )}
                         {activeForm === 'department' && (
                             <form onSubmit={(e) => handleFormSubmit(e, 'add-department', { name: newDepartment }, () => setNewDepartment(''))} className="space-y-2 mt-4 p-4 border rounded-lg">
                                 <h3 className="font-semibold text-lg mb-2">Add Department</h3>
                                 <input type="text" placeholder="Department Name" value={newDepartment} onChange={e => setNewDepartment(e.target.value)} className="w-full p-2 border rounded" required />
-                                <button type="submit" className="w-full bg-green-500 text-white py-2 rounded">Submit</button>
+                                <button type="submit" className="w-full btn bg-green-500 hover:bg-green-600 text-white">Submit</button>
                             </form>
                         )}
                         {activeForm === 'category' && (
@@ -370,7 +374,7 @@ export default function Admin() {
                                     <option value="High">High</option>
                                     <option value="Emergency">Emergency</option>
                                 </select>
-                                <button type="submit" className="w-full bg-green-500 text-white py-2 rounded">Submit</button>
+                                <button type="submit" className="w-full btn bg-green-500 hover:bg-green-600 text-white">Submit</button>
                             </form>
                         )}
                     </div>
@@ -378,26 +382,41 @@ export default function Admin() {
                     <div className="bg-white p-6 rounded-lg shadow">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-2xl font-semibold">Detailed Grievance Report</h2>
-                            <button onClick={() => downloadCSV(filteredAndSortedGrievances)} className="bg-green-500 text-white px-4 py-2 rounded-lg shadow hover:bg-green-600">Download CSV</button>
+                            <button onClick={() => downloadCSV(filteredAndSortedGrievances)} className="btn bg-green-500 hover:bg-green-600 text-white">Download CSV</button>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-                            <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="p-2 border rounded" />
-                            <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="p-2 border rounded" />
-                            <select name="department" value={filters.department} onChange={handleFilterChange} className="p-2 border rounded">
-                                <option value="">All Departments</option>
-                                {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                            </select>
-                            <select name="status" value={filters.status} onChange={handleFilterChange} className="p-2 border rounded">
-                                <option value="">All Statuses</option>
-                                <option value="Submitted">Submitted</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Resolved">Resolved</option>
-                            </select>
-                            <select name="escalation" value={filters.escalation} onChange={handleFilterChange} className="p-2 border rounded">
-                                <option value="">Any Escalation</option>
-                                <option value="1">Level 1+</option>
-                                <option value="2">Level 2+</option>
-                            </select>
+                        <div className="mb-4">
+                            <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 text-blue-600 font-semibold mb-2">
+                                <Filter size={18} />
+                                {showFilters ? 'Hide Filters' : 'Show Filters'}
+                            </button>
+                            {showFilters && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 p-4 bg-gray-50 rounded-lg">
+                                    <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="p-2 border rounded" />
+                                    <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="p-2 border rounded" />
+                                    <select name="department" value={filters.department} onChange={handleFilterChange} className="p-2 border rounded">
+                                        <option value="">All Departments</option>
+                                        {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
+                                    </select>
+                                    <select name="status" value={filters.status} onChange={handleFilterChange} className="p-2 border rounded">
+                                        <option value="">All Statuses</option>
+                                        <option value="Submitted">Submitted</option>
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="Resolved">Resolved</option>
+                                    </select>
+                                    <select name="escalation" value={filters.escalation} onChange={handleFilterChange} className="p-2 border rounded">
+                                        <option value="">Any Escalation</option>
+                                        <option value="1">Level 1+</option>
+                                        <option value="2">Level 2+</option>
+                                    </select>
+                                    {/* --- NEW URGENCY FILTER ADDED --- */}
+                                    <select name="urgency" value={filters.urgency} onChange={handleFilterChange} className="p-2 border rounded">
+                                        <option value="">All Urgencies</option>
+                                        <option value="Normal">Normal</option>
+                                        <option value="High">High</option>
+                                        <option value="Emergency">Emergency</option>
+                                    </select>
+                                </div>
+                            )}
                         </div>
                         <div className="overflow-x-auto">
                             <table className="min-w-full text-left">
@@ -419,7 +438,16 @@ export default function Admin() {
                                             <td className="p-3 font-mono text-sm">{g.ticket_id}</td>
                                             <td className="p-3">{g.title}</td>
                                             <td className="p-3">{g.department_name}</td>
-                                            <td className="p-3">{g.status}</td>
+                                            <td className="p-3">
+                                                {/* --- STATUS DISPLAY LOGIC FIXED --- */}
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${g.escalation_level > 0 ? 'bg-red-200 text-red-800' :
+                                                    g.status === 'Resolved' ? 'bg-green-200 text-green-800' :
+                                                        g.status === 'In Progress' ? 'bg-blue-200 text-blue-800' :
+                                                            'bg-yellow-200 text-yellow-800'
+                                                    }`}>
+                                                    {g.escalation_level > 0 ? 'Escalated' : g.status}
+                                                </span>
+                                            </td>
                                             <td className="p-3 font-bold text-center">{g.escalation_level}</td>
                                             <td className="p-3">{new Date(g.created_at).toLocaleDateString()}</td>
                                         </tr>
@@ -448,7 +476,7 @@ export default function Admin() {
                         <textarea name="comment" placeholder="Provide instructions or a reason for reverting..." value={revertFormData.comment}
                             onChange={handleRevertFormChange} className="w-full p-2 border rounded-lg mt-1" rows="3" required />
                     </div>
-                    <button type="submit" className="w-full bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 font-semibold">
+                    <button type="submit" className="w-full btn bg-yellow-600 text-white hover:bg-yellow-700">
                         Confirm Revert to Level 1
                     </button>
                 </form>
