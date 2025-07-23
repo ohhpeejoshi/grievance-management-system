@@ -17,6 +17,7 @@ import {
     sendRevertToOfficeBearerEmail,
     sendGrievanceTransferNotification
 } from '../utils/mail.js';
+import { sendTicketIdEmail } from '../utils/sendTicketIdEmail.js'; // Import the sendTicketIdEmail function
 import imagekit from '../config/imagekit.js';
 import { db } from '../config/db.js';
 import bcrypt from 'bcrypt';
@@ -95,18 +96,22 @@ export const submitGrievance = async (req, res, next) => {
         const ticket_id = `lnm/${year}/${month}/${serialNo}`;
 
         let response_deadline, resolution_deadline;
+        let resolveIn;
         switch (urgency) {
             case 'Emergency':
                 response_deadline = calculateDeadline(6);
                 resolution_deadline = calculateDeadline(24);
+                resolveIn = "24 hours";
                 break;
             case 'High':
                 response_deadline = calculateDeadline(36);
                 resolution_deadline = calculateDeadline(72);
+                resolveIn = "3 working days";
                 break;
             default:
                 response_deadline = calculateDeadline(60);
                 resolution_deadline = calculateDeadline(120);
+                resolveIn = "5 working days";
                 break;
         }
 
@@ -114,12 +119,20 @@ export const submitGrievance = async (req, res, next) => {
             ticket_id, title, description, location, department_id, category_id, urgency,
             attachmentPath: imageUrl, mobile_number: mobileNumber, complainant_name: complainantName,
             email, response_deadline, resolution_deadline
-        }, (err) => {
+        }, async (err) => {
             if (err) return next(new ErrorResponse('DB error inserting grievance', 500));
-            res.status(201).json({ message: 'Grievance submitted successfully', ticket_id });
+
+            try {
+                await sendTicketIdEmail(email, complainantName, ticket_id, urgency, resolveIn);
+                res.status(201).json({ message: 'Grievance submitted successfully', ticket_id });
+            } catch (emailError) {
+                console.error("Failed to send ticket ID email:", emailError);
+                // Still return success to the user, but log the email error
+                res.status(201).json({ message: 'Grievance submitted, but notification email failed.', ticket_id });
+            }
         });
     } catch (err) {
-        console.error("--- IMAGEKIT UPLOAD FAILED ---", err);
+        console.error("--- IMAGEKIT UPLOAD FAILED OR OTHER ERROR ---", err);
         next(err);
     }
 };
@@ -222,6 +235,8 @@ export const getEscalatedGrievances = (req, res, next) => {
     });
 };
 
+// backend/controllers/grievanceController.js
+
 export const revertGrievance = async (req, res, next) => {
     const { ticketId } = req.params;
     const { new_resolution_days, comment, authorityEmail } = req.body;
@@ -229,8 +244,11 @@ export const revertGrievance = async (req, res, next) => {
         return next(new ErrorResponse('Comment and a valid number of new resolution days are required.', 400));
     }
     try {
+        // Calculate resolution deadline in working hours
         const new_resolution_hours = new_resolution_days * 24;
         const new_resolution_deadline = calculateDeadline(new_resolution_hours);
+
+        // **NEW LOGIC**: Calculate response deadline as half of the resolution deadline
         const new_response_hours = new_resolution_hours / 2;
         const new_response_deadline = calculateDeadline(new_response_hours);
 
@@ -263,7 +281,6 @@ export const revertGrievance = async (req, res, next) => {
         next(err);
     }
 };
-
 
 export const transferGrievance = async (req, res, next) => {
     const { ticketId, newDepartmentId } = req.body;
@@ -355,6 +372,8 @@ export const getLevel2Grievances = (req, res, next) => {
     });
 };
 
+// backend/controllers/grievanceController.js
+
 export const revertToLevel1 = async (req, res, next) => {
     const { ticketId } = req.params;
     const { new_resolution_days, comment, adminEmail } = req.body;
@@ -362,8 +381,11 @@ export const revertToLevel1 = async (req, res, next) => {
         return next(new ErrorResponse('Comment and a valid number of new resolution days are required.', 400));
     }
     try {
+        // Calculate resolution deadline in working hours
         const new_resolution_hours = new_resolution_days * 24;
         const new_resolution_deadline = calculateDeadline(new_resolution_hours);
+
+        // **NEW LOGIC**: Calculate response deadline as half of the resolution deadline
         const new_response_hours = new_resolution_hours / 2;
         const new_response_deadline = calculateDeadline(new_response_hours);
 
