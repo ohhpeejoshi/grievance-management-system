@@ -164,19 +164,26 @@ export const assignGrievance = async (req, res, next) => {
         const { ticketId } = req.params;
         const { workerId, officeBearerEmail } = req.body;
         updateGrievanceStatus(ticketId, 'In Progress', workerId, async (err) => {
-            if (err) throw err;
-            const [grievanceDetails] = await db.promise().query('SELECT g.*, c.name as category_name, w.name AS worker_name, w.email AS worker_email, w.phone_number AS worker_phone, u.roll_number FROM grievances g LEFT JOIN categories c ON g.category_id = c.id LEFT JOIN workers w ON g.assigned_worker_id = w.id LEFT JOIN users u ON g.email = u.email WHERE g.ticket_id = ?', [ticketId]);
-            const [bearerDetails] = await db.promise().query('SELECT name, email, mobile_number FROM office_bearers WHERE email = ?', [officeBearerEmail]);
-            if (grievanceDetails.length) {
-                const grievance = grievanceDetails[0];
-                const worker = { name: grievance.worker_name, email: grievance.worker_email, phone_number: grievance.worker_phone };
-                const officeBearer = bearerDetails.length ? bearerDetails[0] : null;
-                sendGrievanceAssignedEmailToUser(grievance.email, grievance.complainant_name, ticketId, worker).catch(console.error);
-                if (officeBearer) {
-                    sendGrievanceAssignedEmailToWorker(worker.email, worker.name, ticketId, grievance, officeBearer).catch(console.error);
-                }
+            if (err) {
+                return next(new ErrorResponse('Failed to update grievance status.', 500));
             }
-            res.status(200).json({ message: 'Grievance assigned successfully' });
+            try {
+                const [grievanceDetails] = await db.promise().query('SELECT g.*, c.name as category_name, w.name AS worker_name, w.email AS worker_email, w.phone_number AS worker_phone, u.roll_number FROM grievances g LEFT JOIN categories c ON g.category_id = c.id LEFT JOIN workers w ON g.assigned_worker_id = w.id LEFT JOIN users u ON g.email = u.email WHERE g.ticket_id = ?', [ticketId]);
+                const [bearerDetails] = await db.promise().query('SELECT name, email, mobile_number FROM office_bearers WHERE email = ?', [officeBearerEmail]);
+                if (grievanceDetails.length) {
+                    const grievance = grievanceDetails[0];
+                    const worker = { name: grievance.worker_name, email: grievance.worker_email, phone_number: grievance.worker_phone };
+                    const officeBearer = bearerDetails.length ? bearerDetails[0] : null;
+                    await sendGrievanceAssignedEmailToUser(grievance.email, grievance.complainant_name, ticketId, worker);
+                    if (officeBearer) {
+                        await sendGrievanceAssignedEmailToWorker(worker.email, worker.name, ticketId, grievance, officeBearer);
+                    }
+                }
+                res.status(200).json({ message: 'Grievance assigned successfully' });
+            } catch (emailError) {
+                console.error("Email sending failed:", emailError);
+                return next(new ErrorResponse('Grievance assigned, but failed to send notification emails.', 500));
+            }
         });
     } catch (err) {
         next(err);
@@ -187,13 +194,20 @@ export const resolveGrievance = async (req, res, next) => {
     try {
         const { ticketId } = req.params;
         updateGrievanceStatus(ticketId, 'Resolved', null, async (err) => {
-            if (err) throw err;
-            const [details] = await db.promise().query('SELECT email, complainant_name FROM grievances WHERE ticket_id = ?', [ticketId]);
-            if (details.length) {
-                const grievance = details[0];
-                sendGrievanceStatusUpdateEmail(grievance.email, grievance.complainant_name, ticketId, 'Resolved').catch(console.error);
+            if (err) {
+                return next(new ErrorResponse('Failed to update grievance status.', 500));
             }
-            res.status(200).json({ message: 'Grievance resolved successfully' });
+            try {
+                const [details] = await db.promise().query('SELECT email, complainant_name FROM grievances WHERE ticket_id = ?', [ticketId]);
+                if (details.length) {
+                    const grievance = details[0];
+                    await sendGrievanceStatusUpdateEmail(grievance.email, grievance.complainant_name, ticketId, 'Resolved');
+                }
+                res.status(200).json({ message: 'Grievance resolved successfully' });
+            } catch (emailError) {
+                console.error("Email sending failed:", emailError);
+                return next(new ErrorResponse('Grievance resolved, but failed to send notification email.', 500));
+            }
         });
     } catch (err) {
         next(err);
@@ -211,12 +225,15 @@ export const getEscalatedGrievances = (req, res, next) => {
 export const revertGrievance = async (req, res, next) => {
     const { ticketId } = req.params;
     const { new_resolution_days, comment, authorityEmail } = req.body;
-    if (!comment || !new_resolution_days) {
-        return next(new ErrorResponse('Comment and new resolution days are required.', 400));
+    if (!comment || !new_resolution_days || new_resolution_days <= 0) {
+        return next(new ErrorResponse('Comment and a valid number of new resolution days are required.', 400));
     }
     try {
         const new_resolution_hours = new_resolution_days * 24;
         const new_resolution_deadline = calculateDeadline(new_resolution_hours);
+        const new_response_hours = new_resolution_hours / 2;
+        const new_response_deadline = calculateDeadline(new_response_hours);
+
         const [grievanceRows] = await db.promise().query('SELECT g.ticket_id, d.name as department_name FROM grievances g JOIN departments d ON g.department_id = d.id WHERE g.ticket_id = ?', [ticketId]);
         if (grievanceRows.length === 0) {
             return next(new ErrorResponse('Grievance not found.', 404));
@@ -224,16 +241,29 @@ export const revertGrievance = async (req, res, next) => {
         const departmentName = grievanceRows[0].department_name;
         const [bearers] = await db.promise().query('SELECT email FROM office_bearers WHERE department = ?', [departmentName]);
         const bearerEmails = bearers.map(b => b.email);
-        const sql = "UPDATE grievances SET resolution_deadline = ?, escalation_level = 0, updated_at = NOW() WHERE ticket_id = ?";
-        await db.promise().query(sql, [new_resolution_deadline, ticketId]);
+
+        const sql = `
+            UPDATE grievances 
+            SET 
+                status = 'Submitted', 
+                assigned_worker_id = NULL, 
+                response_deadline = ?, 
+                resolution_deadline = ?, 
+                escalation_level = 0, 
+                updated_at = NOW() 
+            WHERE ticket_id = ?
+        `;
+        await db.promise().query(sql, [new_response_deadline, new_resolution_deadline, ticketId]);
+
         if (bearerEmails.length > 0) {
             await sendRevertToOfficeBearerEmail(grievanceRows[0], comment, authorityEmail, bearerEmails);
         }
-        res.status(200).json({ message: 'Grievance reverted with new resolution time and office bearers notified.' });
+        res.status(200).json({ message: 'Grievance reverted with new deadlines and office bearers notified.' });
     } catch (err) {
         next(err);
     }
 };
+
 
 export const transferGrievance = async (req, res, next) => {
     const { ticketId, newDepartmentId } = req.body;
@@ -328,14 +358,26 @@ export const getLevel2Grievances = (req, res, next) => {
 export const revertToLevel1 = async (req, res, next) => {
     const { ticketId } = req.params;
     const { new_resolution_days, comment, adminEmail } = req.body;
-    if (!comment || !new_resolution_days) {
-        return next(new ErrorResponse('Comment and new resolution days are required.', 400));
+    if (!comment || !new_resolution_days || new_resolution_days <= 0) {
+        return next(new ErrorResponse('Comment and a valid number of new resolution days are required.', 400));
     }
     try {
         const new_resolution_hours = new_resolution_days * 24;
         const new_resolution_deadline = calculateDeadline(new_resolution_hours);
-        const updateSql = "UPDATE grievances SET resolution_deadline = ?, escalation_level = 1, updated_at = NOW() WHERE ticket_id = ?";
-        await db.promise().query(updateSql, [new_resolution_deadline, ticketId]);
+        const new_response_hours = new_resolution_hours / 2;
+        const new_response_deadline = calculateDeadline(new_response_hours);
+
+        const updateSql = `
+            UPDATE grievances 
+            SET 
+                response_deadline = ?, 
+                resolution_deadline = ?, 
+                escalation_level = 1, 
+                updated_at = NOW() 
+            WHERE ticket_id = ?
+        `;
+        await db.promise().query(updateSql, [new_response_deadline, new_resolution_deadline, ticketId]);
+
         const [authorities] = await db.promise().query('SELECT email FROM approving_authorities');
         const authorityEmails = authorities.map(a => a.email);
         if (authorityEmails.length > 0) {
