@@ -4,6 +4,7 @@ import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
 import toast from 'react-hot-toast';
+import axios from '../api/axiosConfig'; // Use the configured axios instance
 
 export default function ForgotPassword() {
     const [isLoading, setIsLoading] = useState(false);
@@ -39,22 +40,14 @@ export default function ForgotPassword() {
 
         const toastId = toast.loading('Requesting OTP...');
         try {
-            const res = await fetch("http://localhost:3000/api/auth/forgot-password", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identifier }),
-            });
-            const data = await res.json();
+            const res = await axios.post("/api/auth/forgot-password", { identifier });
 
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to request OTP.");
-            }
-
-            toast.success(data.message, { id: toastId });
+            toast.success(res.data.message, { id: toastId });
             setOtpRequested(true);
             startCountdown();
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to request OTP.";
+            toast.error(message, { id: toastId });
         }
     };
 
@@ -63,18 +56,13 @@ export default function ForgotPassword() {
         setIsLoading(true);
         const toastId = toast.loading('Resending OTP...');
         try {
-            const response = await fetch("http://localhost:3000/api/auth/forgot-password", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identifier }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Resend failed");
+            await axios.post("/api/auth/forgot-password", { identifier });
 
             toast.success("OTP resent successfully", { id: toastId });
             startCountdown();
         } catch (err) {
-            toast.error("Error: " + err.message, { id: toastId });
+            const message = err.response?.data?.error || "Resend failed";
+            toast.error("Error: " + message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -94,21 +82,13 @@ export default function ForgotPassword() {
         setIsLoading(true);
         const toastId = toast.loading('Resetting password...');
         try {
-            const res = await fetch("http://localhost:3000/api/auth/reset-password", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identifier, otp, newPassword }),
-            });
-            const data = await res.json();
+            const res = await axios.post("/api/auth/reset-password", { identifier, otp, newPassword });
 
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to reset password.");
-            }
-
-            toast.success(data.message, { id: toastId });
+            toast.success(res.data.message, { id: toastId });
             navigate("/login");
         } catch (err) {
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Failed to reset password.";
+            toast.error(message, { id: toastId });
         } finally {
             setIsLoading(false);
         }

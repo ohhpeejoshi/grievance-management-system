@@ -4,7 +4,7 @@ import { Plus, Paperclip, Printer, Info, ArrowRightCircle, FileSignature, UserPl
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
 import Modal from './Modal';
-import axios from 'axios';
+import axios from '../api/axiosConfig'; // Use the configured axios instance
 
 export default function OfficeBearer() {
     const [grievances, setGrievances] = useState([]);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import SkeletonLoader from './SkeletonLoader';
-import axios from 'axios'; // Import axios
+import axios from '../api/axiosConfig'; // Use the configured axios instance
 
 const GrievanceHistory = () => {
     const [history, setHistory] = useState([]);

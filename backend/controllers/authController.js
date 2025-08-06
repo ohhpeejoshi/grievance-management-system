@@ -43,10 +43,14 @@ export const registerUser = async (req, res, next) => {
                 return next(new ErrorResponse('Database error during user creation.', 500));
             }
 
-            sendRegistrationEmail(email, name)
-                .catch(console.error);
-
-            res.status(201).json({ message: 'User registered successfully.' });
+            try {
+                await sendRegistrationEmail(email, name);
+                res.status(201).json({ message: 'User registered successfully.' });
+            } catch (emailError) {
+                console.error("Email sending failed:", emailError);
+                // Even if email fails, the user is created. We inform about the email failure.
+                return next(new ErrorResponse('User registered, but failed to send welcome email.', 500));
+            }
         });
     } catch (error) {
         next(error)

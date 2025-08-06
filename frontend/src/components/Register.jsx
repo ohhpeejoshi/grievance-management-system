@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
 import toast from 'react-hot-toast';
+import axios from '../api/axiosConfig'; // Use the configured axios instance
 
 export default function Register() {
     const navigate = useNavigate();
@@ -22,30 +23,20 @@ export default function Register() {
         e.preventDefault();
         const toastId = toast.loading('Registering...');
         try {
-            const res = await fetch("http://localhost:3000/api/auth/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(formData),
-            });
+            const res = await axios.post("/api/auth/register", formData);
 
-            const data = await res.json();
-            if (res.ok) {
-                toast.success("Registration successful ✅", { id: toastId });
-                setFormData({
-                    roll_number: "",
-                    name: "",
-                    email: "",
-                    password: "",
-                    mobile_number: "",
-                });
-            } else {
-                throw new Error(data.error || "Registration failed");
-            }
+            toast.success("Registration successful ✅", { id: toastId });
+            setFormData({
+                roll_number: "",
+                name: "",
+                email: "",
+                password: "",
+                mobile_number: "",
+            });
         } catch (err) {
             console.error(err);
-            toast.error(err.message, { id: toastId });
+            const message = err.response?.data?.error || "Registration failed";
+            toast.error(message, { id: toastId });
         }
     };
 

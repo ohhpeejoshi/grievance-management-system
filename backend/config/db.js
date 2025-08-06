@@ -1,11 +1,11 @@
-import mysql from 'mysql2';
+// File: backend/config/db.js
+import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-let pool;
-
-const dbConfig = {
+// Create the connection pool using the promise-based library
+const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -15,62 +15,41 @@ const dbConfig = {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
-};
+});
 
-function handleDisconnect() {
-    pool = mysql.createPool(dbConfig);
+console.log('MySQL Promise Pool configured.');
 
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('DB Pool Connection Failed:', err);
-            // Retry connection after a short delay
-            setTimeout(handleDisconnect, 2000);
-        }
-        if (connection) {
-            connection.release();
-            console.log('MySQL Pool Connected Successfully');
-        }
-    });
-
-    pool.on('error', function (err) {
-        console.error('Database Pool Error:', err);
-        if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
-            // Connection lost. Re-establish the pool.
-            console.log('Reconnecting to the database...');
-            handleDisconnect();
-        } else {
-            throw err;
-        }
-    });
-}
-
-// Initialize the connection pool
-handleDisconnect();
-
+// Export a hybrid db object that supports both patterns
 export const db = {
-    query: (sql, params, callback) => {
-        pool.query(sql, params, (error, results) => {
-            if (error) {
-                console.error('Database Query Error:', error);
-            }
-            callback(error, results);
-        });
-    },
-    promise: () => pool.promise(),
     /**
-     * Closes the connection pool.
-     * This should be called when the application is shutting down
-     * or when a script has finished its task.
+     * The promise() function now simply returns the pool itself,
+     * as the pool is already promise-enabled. This is for use with async/await.
+     * e.g., await db.promise().query(...)
      */
-    end: () => {
-        if (pool) {
-            pool.end(err => {
-                if (err) {
-                    console.error('Error closing the database pool:', err);
-                    return;
-                }
-                console.log('Database pool closed.');
-            });
+    promise: () => pool,
+
+    /**
+     * The query() function is for the parts of the app that use callbacks.
+     * It executes a query using the promise-based pool and then calls the
+     * callback function to maintain compatibility.
+     */
+    query: (sql, params, callback) => {
+        // Handle the case where params are omitted (e.g., db.query(sql, callback))
+        if (typeof params === 'function') {
+            callback = params;
+            params = [];
         }
+
+        // Use the promise-based query and then invoke the callback
+        pool.query(sql, params)
+            .then(([results]) => {
+                // Call the callback with (error, results) signature
+                callback(null, results);
+            })
+            .catch(err => {
+                // Call the callback with an error
+                console.error('Database Query Error:', err);
+                callback(err, null);
+            });
     }
 };

@@ -4,6 +4,7 @@ import logo from "../assets/Logo_LNMIIT2.png";
 import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
 import toast from 'react-hot-toast';
+import axios from '../api/axiosConfig'; // Use the configured axios instance
 
 export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -20,25 +21,13 @@ export default function Login() {
         const token = localStorage.getItem('token');
         const userRole = localStorage.getItem('userRole');
 
-        // If the user is already logged in, redirect them to their dashboard
         if (token && userRole) {
             switch (userRole) {
-                case 'user':
-                    navigate('/home');
-                    break;
-                case 'office-bearer':
-                    navigate('/office-bearer');
-                    break;
-                case 'approving-authority':
-                    navigate('/approving-authority');
-                    break;
-                case 'admin':
-                    navigate('/admin');
-                    break;
-                default:
-                    // If role is unknown, clear session and stay on login
-                    localStorage.clear();
-                    break;
+                case 'user': navigate('/home'); break;
+                case 'office-bearer': navigate('/office-bearer'); break;
+                case 'approving-authority': navigate('/approving-authority'); break;
+                case 'admin': navigate('/admin'); break;
+                default: localStorage.clear(); break;
             }
         }
     }, [navigate]);
@@ -69,19 +58,13 @@ export default function Login() {
         setIsLoading(true);
         const toastId = toast.loading('Requesting OTP...');
         try {
-            const response = await fetch("http://localhost:3000/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Login failed");
-
+            const response = await axios.post("/api/auth/login", { email, password });
             setOtpRequested(true);
             toast.success("OTP sent to your registered email id", { id: toastId });
             startCountdown();
         } catch (err) {
-            toast.error("Error: " + err.message, { id: toastId });
+            const message = err.response?.data?.error || "Login failed";
+            toast.error("Error: " + message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -92,18 +75,12 @@ export default function Login() {
         setIsLoading(true);
         const toastId = toast.loading('Resending OTP...');
         try {
-            const response = await fetch("http://localhost:3000/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Resend failed");
-
+            await axios.post("/api/auth/login", { email, password });
             toast.success("OTP resent successfully", { id: toastId });
             startCountdown();
         } catch (err) {
-            toast.error("Error: " + err.message, { id: toastId });
+            const message = err.response?.data?.error || "Resend failed";
+            toast.error("Error: " + message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -123,14 +100,10 @@ export default function Login() {
         setIsLoading(true);
         const toastId = toast.loading('Logging in...');
         try {
-            const response = await fetch("http://localhost:3000/api/auth/verify-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, otp }),
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "OTP verification failed");
+            const response = await axios.post("/api/auth/verify-otp", { email, otp });
+            const data = response.data;
 
+            // Store the token
             localStorage.setItem("token", data.token);
             localStorage.setItem("userRole", data.role);
             localStorage.setItem("userEmail", email);
@@ -138,18 +111,19 @@ export default function Login() {
                 localStorage.setItem("departmentId", data.departmentId)
             }
             toast.success("Login successful!", { id: toastId });
-            if (data.role === 'user') {
-                navigate("/home");
-            } else if (data.role === 'office-bearer') {
-                navigate("/office-bearer");
-            } else if (data.role === 'approving-authority') {
-                navigate("/approving-authority");
-            } else if (data.role === 'admin') {
-                navigate("/admin");
+
+            // Redirect based on role
+            switch (data.role) {
+                case 'user': navigate("/home"); break;
+                case 'office-bearer': navigate("/office-bearer"); break;
+                case 'approving-authority': navigate("/approving-authority"); break;
+                case 'admin': navigate("/admin"); break;
+                default: navigate("/login"); break;
             }
 
         } catch (err) {
-            toast.error("Error: " + err.message, { id: toastId });
+            const message = err.response?.data?.error || "OTP verification failed";
+            toast.error("Error: " + message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -157,96 +131,42 @@ export default function Login() {
 
     return (
         <div className="relative min-h-screen flex items-center justify-center px-6 py-12 overflow-hidden">
-            <img
-                src={background}
-                alt="LNMIIT Campus"
-                className="absolute inset-0 w-full h-full object-cover z-0"
-            />
-
+            <img src={background} alt="LNMIIT Campus" className="absolute inset-0 w-full h-full object-cover z-0" />
             <div className="relative z-10 bg-white/60 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-md p-8">
-
                 <div className="mb-6 text-center">
                     <img src={logo} alt="LNMIIT Logo" className="mx-auto h-10 w-auto" />
                     <h2 className="text-2xl font-semibold text-gray-800 mt-2">Login</h2>
                 </div>
-
                 <form onSubmit={handleLogin} className="space-y-4">
+                    {/* Form fields remain the same */}
                     <div>
                         <label className="block mb-1 font-medium">Email</label>
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Enter your LNMIIT email id"
-                            className="w-full border px-4 py-2 rounded-xl"
-                            required
-                        />
+                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your LNMIIT email id" className="w-full border px-4 py-2 rounded-xl" required />
                     </div>
-
                     <div>
                         <label className="block mb-1 font-medium">Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Password"
-                            className="w-full border px-4 py-2 rounded-xl"
-                            required
-                        />
+                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full border px-4 py-2 rounded-xl" required />
                         <div className="mt-1 text-right">
-                            <Link to="/forgot-password" className="text-blue-600 text-sm">
-                                Forgot Password?
-                            </Link>
+                            <Link to="/forgot-password" className="text-blue-600 text-sm">Forgot Password?</Link>
                         </div>
                     </div>
-
                     <div className="flex space-x-2">
-                        <button
-                            type="button"
-                            onClick={handleRequestOtp}
-                            className="flex-1 bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700"
-                        >
-                            Request OTP
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleResendOtp}
-                            className="flex-1 bg-gray-600 text-white py-2 rounded-xl hover:bg-gray-700 disabled:bg-gray-400"
-                            disabled={!otpRequested || isResendDisabled}
-                        >
+                        <button type="button" onClick={handleRequestOtp} className="flex-1 bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700">Request OTP</button>
+                        <button type="button" onClick={handleResendOtp} className="flex-1 bg-gray-600 text-white py-2 rounded-xl hover:bg-gray-700 disabled:bg-gray-400" disabled={!otpRequested || isResendDisabled}>
                             {isResendDisabled ? `Resend in ${countdown}s` : "Resend OTP"}
                         </button>
                     </div>
-
                     <div>
                         <label className="block mb-1 font-medium">OTP</label>
-                        <input
-                            type="text"
-                            value={otp}
-                            onChange={(e) => setOtp(e.target.value)}
-                            placeholder="Enter OTP"
-                            className="w-full border px-4 py-2 rounded-xl"
-                            required={otpRequested}
-                            disabled={!otpRequested}
-                        />
+                        <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="Enter OTP" className="w-full border px-4 py-2 rounded-xl" required={otpRequested} disabled={!otpRequested} />
                     </div>
-
-                    <button
-                        type="submit"
-                        className="w-full bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700"
-                    >
-                        Login
-                    </button>
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700">Login</button>
                 </form>
-
                 <div className="mt-4 text-center">
                     <p className="text-sm">Don’t have an account?</p>
-                    <Link to="/register" className="text-blue-600 font-medium">
-                        Register here
-                    </Link>
+                    <Link to="/register" className="text-blue-600 font-medium">Register here</Link>
                 </div>
             </div>
-
             {isLoading && <OtpLoader />}
         </div>
     );

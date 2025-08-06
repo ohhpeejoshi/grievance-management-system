@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, MessageSquare, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
 import Modal from './Modal';
-import axios from 'axios';
+import axios from '../api/axiosConfig'; // Use the configured axios instance
 
 const downloadCSV = (data, filename = 'report.csv') => {
     if (!data || data.length === 0) {

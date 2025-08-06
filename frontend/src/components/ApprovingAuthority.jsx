@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, MessageSquare, ArrowRightCircle, Filter } from 
 import toast from 'react-hot-toast';
 import SkeletonLoader from './SkeletonLoader';
 import Modal from './Modal';
-import axios from 'axios';
+import axios from '../api/axiosConfig'; // Use the configured axios instance
 
 export default function ApprovingAuthority() {
     const [allGrievances, setAllGrievances] = useState([]);
