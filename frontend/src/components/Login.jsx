@@ -5,6 +5,7 @@ import background from "../assets/background.jpg";
 import OtpLoader from "./OtpLoader";
 import toast from 'react-hot-toast';
 import axios from '../api/axiosConfig'; // Use the configured axios instance
+import { Eye, EyeOff } from 'lucide-react'; // Import icons
 
 export default function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -14,6 +15,7 @@ export default function Login() {
     const [otp, setOtp] = useState("");
     const [countdown, setCountdown] = useState(0);
     const [isResendDisabled, setIsResendDisabled] = useState(false);
+    const [showPassword, setShowPassword] = useState(false); // State for password visibility
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -58,7 +60,7 @@ export default function Login() {
         setIsLoading(true);
         const toastId = toast.loading('Requesting OTP...');
         try {
-            const response = await axios.post("/api/auth/login", { email, password });
+            await axios.post("/api/auth/login", { email, password });
             setOtpRequested(true);
             toast.success("OTP sent to your registered email id", { id: toastId });
             startCountdown();
@@ -138,14 +140,29 @@ export default function Login() {
                     <h2 className="text-2xl font-semibold text-gray-800 mt-2">Login</h2>
                 </div>
                 <form onSubmit={handleLogin} className="space-y-4">
-                    {/* Form fields remain the same */}
                     <div>
                         <label className="block mb-1 font-medium">Email</label>
                         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your LNMIIT email id" className="w-full border px-4 py-2 rounded-xl" required />
                     </div>
                     <div>
                         <label className="block mb-1 font-medium">Password</label>
-                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full border px-4 py-2 rounded-xl" required />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Password"
+                                className="w-full border px-4 py-2 rounded-xl"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-600"
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
                         <div className="mt-1 text-right">
                             <Link to="/forgot-password" className="text-blue-600 text-sm">Forgot Password?</Link>
                         </div>
@@ -156,10 +173,25 @@ export default function Login() {
                             {isResendDisabled ? `Resend in ${countdown}s` : "Resend OTP"}
                         </button>
                     </div>
-                    <div>
-                        <label className="block mb-1 font-medium">OTP</label>
-                        <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="Enter OTP" className="w-full border px-4 py-2 rounded-xl" required={otpRequested} disabled={!otpRequested} />
-                    </div>
+                    {otpRequested && (
+                        <div>
+                            <label className="block mb-1 font-medium">OTP</label>
+                            <input
+                                type="text"
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value)}
+                                placeholder="Enter OTP"
+                                className="w-full border px-4 py-2 rounded-xl"
+                                required={otpRequested}
+                                disabled={!otpRequested}
+                            />
+                            {countdown > 0 && (
+                                <p className="text-xs text-center text-gray-500 mt-1">
+                                    OTP expires in {countdown}s
+                                </p>
+                            )}
+                        </div>
+                    )}
                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700">Login</button>
                 </form>
                 <div className="mt-4 text-center">

@@ -281,7 +281,6 @@ export const revertGrievance = async (req, res, next) => {
         next(err);
     }
 };
-
 export const transferGrievance = async (req, res, next) => {
     const { ticketId, newDepartmentId } = req.body;
     if (!ticketId || !newDepartmentId) {

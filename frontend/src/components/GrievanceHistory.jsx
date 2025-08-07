@@ -27,15 +27,12 @@ const GrievanceHistory = () => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Use Promise.all to fetch both history and departments
                 const [historyRes, deptsRes] = await Promise.all([
                     axios.get(`/api/grievances/history/${userEmail}`),
                     axios.get('/api/grievances/departments')
                 ]);
-
                 setHistory(historyRes.data);
                 setDepartments(deptsRes.data);
-
             } catch (err) {
                 const message = err.response?.data?.error || 'Failed to fetch page data.';
                 setError(message);
@@ -110,6 +107,45 @@ const GrievanceHistory = () => {
         setFilters({ ...filters, [e.target.name]: e.target.value });
     };
 
+    /**
+     * This function renders the status badge based on the grievance status from the database.
+     * It handles known statuses and defaults unknown ones to "Submitted" to prevent visual glitches.
+     * @param {string} status - The status of the grievance from the database.
+     * @returns {JSX.Element} - A styled span element for the status.
+     */
+    const getStatusBadge = (status) => {
+        let displayText = status;
+        let styleClass = '';
+
+        switch (status) {
+            case 'Resolved':
+                styleClass = 'bg-green-200 text-green-800';
+                break;
+            case 'In Progress':
+                styleClass = 'bg-blue-200 text-blue-800';
+                break;
+            case 'Escalated':
+                styleClass = 'bg-red-200 text-red-800';
+                break;
+            case 'Submitted':
+                styleClass = 'bg-yellow-200 text-yellow-800';
+                break;
+            default:
+                // If the status from the DB is not a recognized value (e.g., '.', null),
+                // default to showing 'Submitted' to fix the UI bug.
+                displayText = 'Submitted';
+                styleClass = 'bg-yellow-200 text-yellow-800';
+                break;
+        }
+
+        return (
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${styleClass}`}>
+                {displayText}
+            </span>
+        );
+    };
+
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-red-300 to-blue-300 py-12 px-6">
@@ -181,12 +217,7 @@ const GrievanceHistory = () => {
                                         <td className="py-3 px-4">{grievance.title}</td>
                                         <td className="py-3 px-4">{grievance.department_name}</td>
                                         <td className="py-3 px-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${grievance.status === "Resolved" ? "bg-green-200 text-green-800" :
-                                                grievance.status === "In Progress" ? "bg-blue-200 text-blue-800" :
-                                                    "bg-yellow-200 text-yellow-800"
-                                                }`}>
-                                                {grievance.status}
-                                            </span>
+                                            {getStatusBadge(grievance.status)}
                                         </td>
                                         <td className="py-3 px-4">{formatTimestamp(grievance.created_at)}</td>
                                         <td className="py-3 px-4">{formatTimestamp(grievance.updated_at)}</td>
